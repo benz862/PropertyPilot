@@ -391,6 +391,61 @@ export interface VoiceNoteRow {
   updated_at: string;
 }
 
+export interface PropertyIntelligenceRow {
+  id: string;
+  property_id: string;
+  intelligence: Record<string, unknown>;
+  source_map: unknown[];
+  missing_information: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PropertyRoom {
+  id: string;
+  property_id: string;
+  name: string;
+  description: string | null;
+  features: unknown[];
+  updates: unknown[];
+  included_items: unknown[];
+  talking_points: unknown[];
+  cautions: unknown[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BuyerQuestionRow {
+  id: string;
+  organization_id: string | null;
+  property_id: string;
+  visitor_session_id: string | null;
+  lead_id: string | null;
+  room_id: string | null;
+  selected_room: string | null;
+  question: string;
+  normalized_question: string | null;
+  answer: string | null;
+  confidence: string | null;
+  answered_from_sources: unknown[];
+  needs_agent_followup: boolean;
+  buyer_name: string | null;
+  buyer_email: string | null;
+  buyer_phone: string | null;
+  input_type: string | null;
+  user_agent: string | null;
+  status: string;
+  intent: ConversationIntent;
+  knowledge_object_ids: string[];
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+  updated_by: string | null;
+  deleted_at: string | null;
+  version: number;
+}
+
 export interface NeighborhoodIntelligenceRow {
   id: string;
   property_id: string;
@@ -689,6 +744,9 @@ export interface Database {
       twin_audit_log: TableDef<TwinAuditLogRow>;
       voice_notes: TableDef<VoiceNoteRow>;
       neighborhood_intelligence: TableDef<NeighborhoodIntelligenceRow>;
+      property_intelligence: TableDef<PropertyIntelligenceRow>;
+      property_rooms: TableDef<PropertyRoom>;
+      buyer_questions: TableDef<BuyerQuestionRow>;
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

@@ -4,6 +4,7 @@ import type {
   PropertyCompletenessScore,
   VoiceNoteIntelligenceResult,
 } from "@/lib/property-twin/types";
+import type { PropertyIntelligence } from "@/lib/property-intelligence";
 
 export type ExtractionSource =
   | "mls"
@@ -102,6 +103,7 @@ export interface BuildPropertyTwinResult {
     photos: PhotoIntelligenceResult[];
     documents: DocumentIntelligenceResult[];
     voiceNotes: VoiceNoteIntelligenceResult[];
+    propertyIntelligence?: PropertyIntelligence;
   };
   builtAt: string;
 }

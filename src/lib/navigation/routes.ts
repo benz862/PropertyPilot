@@ -71,6 +71,7 @@ export type WizardStepId =
   | "mls"
   | "photos"
   | "documents"
+  | "room-knowledge"
   | "voice-notes"
   | "ai-build"
   | "review"
@@ -85,6 +86,7 @@ export const wizardSteps: Array<{
   { id: "mls", label: "Upload MLS", description: "Import listing data" },
   { id: "photos", label: "Photos", description: "Upload property photos" },
   { id: "documents", label: "Documents", description: "Inspection reports and files" },
+  { id: "room-knowledge", label: "Room Knowledge", description: "Room-specific buyer answers" },
   { id: "voice-notes", label: "Voice Notes", description: "Record agent knowledge" },
   { id: "ai-build", label: "AI Build", description: "Generate property twin" },
   { id: "review", label: "Review", description: "Review AI suggestions" },

@@ -303,6 +303,7 @@ export class PropertyTwinService {
     return this.intelligence.analyzePhoto({
       photoId,
       storagePath: photo.storage_path,
+      storageBucket: photo.storage_bucket,
       existingCaptions,
     });
   }
@@ -318,6 +319,8 @@ export class PropertyTwinService {
       title: document.title,
       documentType: document.document_type,
       storagePath: document.storage_path,
+      storageBucket: document.storage_bucket,
+      mimeType: document.mime_type,
     });
   }
 

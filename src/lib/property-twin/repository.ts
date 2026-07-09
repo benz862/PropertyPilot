@@ -19,6 +19,7 @@ import type {
   TwinAuditAction,
   UpdatePropertyProfileInput,
 } from "@/lib/property-twin/types";
+import type { PropertyIntelligence } from "@/lib/property-intelligence";
 
 export type TwinSupabaseClient = SupabaseClient<Database>;
 
@@ -341,7 +342,7 @@ export class PropertyTwinRepository {
   async listPhotos(propertyId: string) {
     const { data, error } = await this.client
       .from("photos")
-      .select("id, caption, detected_room, storage_path, tags, display_order")
+      .select("id, caption, detected_room, storage_bucket, storage_path, tags, display_order")
       .eq("property_id", propertyId)
       .order("display_order");
 
@@ -354,6 +355,7 @@ export class PropertyTwinRepository {
       caption: photo.caption,
       is_primary: photo.display_order === 0,
       detected_room: photo.detected_room ?? null,
+      storage_bucket: photo.storage_bucket,
       storage_path: photo.storage_path,
       tags: photo.tags,
     }));
@@ -628,12 +630,14 @@ export class PropertyTwinRepository {
     documentId: string,
     extractedData: Record<string, unknown>,
     requiresReview: boolean,
+    searchableContent?: string | null,
   ) {
     const { data, error } = await this.client
       .from("documents")
       .update({
         extracted_data: extractedData,
         requires_review: requiresReview,
+        searchable_content: searchableContent ?? undefined,
       })
       .eq("id", documentId)
       .select("*")
@@ -675,6 +679,32 @@ export class PropertyTwinRepository {
 
     if (error || !data) {
       throw new Error(error?.message ?? "Failed to store voice note intelligence");
+    }
+
+    return data;
+  }
+
+  async storePropertyIntelligence(
+    propertyId: string,
+    intelligence: PropertyIntelligence,
+  ) {
+    const { data, error } = await this.client
+      .from("property_intelligence")
+      .upsert(
+        {
+          property_id: propertyId,
+          intelligence: intelligence as unknown as Record<string, unknown>,
+          source_map: intelligence.sourceMap as unknown as Record<string, unknown>[],
+          missing_information: intelligence.missingInformation,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "property_id" },
+      )
+      .select("*")
+      .single();
+
+    if (error || !data) {
+      throw new Error(error?.message ?? "Failed to store property intelligence");
     }
 
     return data;

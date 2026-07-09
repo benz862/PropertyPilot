@@ -6,6 +6,7 @@ const EXTRACTOR_VERSION = "1.0.0";
 export interface PhotoExtractionInput {
   photoId: string;
   storagePath: string;
+  storageBucket?: string;
   existingCaptions?: string[];
 }
 
@@ -13,6 +14,8 @@ export interface PhotoExtractionResult extends PhotoIntelligenceResult {
   source: "photo";
   version: string;
   extractedAt: string;
+  photoId: string;
+  storagePath: string;
   suggestedPoi?: string;
   suggestedFeatures: string[];
   coverageContribution: string | null;
@@ -26,6 +29,7 @@ export async function extractPhotoIntelligence(
   const analysis = await intelligence.analyzePhoto({
     photoId: input.photoId,
     storagePath: input.storagePath,
+    storageBucket: input.storageBucket,
     existingCaptions: input.existingCaptions,
   });
 
@@ -40,6 +44,8 @@ export async function extractPhotoIntelligence(
     source: "photo",
     version: EXTRACTOR_VERSION,
     extractedAt: new Date().toISOString(),
+    photoId: input.photoId,
+    storagePath: input.storagePath,
     suggestedPoi: room ?? undefined,
     suggestedFeatures,
     coverageContribution: room,
