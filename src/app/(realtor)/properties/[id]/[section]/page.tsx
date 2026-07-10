@@ -140,6 +140,25 @@ export default async function PropertySectionPage({ params }: SectionPageProps) 
   if (sectionKey === "overview") {
     const dna = await createPropertyDNAService(client).getPropertyDNA(id);
     const recommendations = dna ? generateRecommendations(dna) : [];
+    const [activitySummary, { data: recentQuestions }, { data: recentAssets }] = await Promise.all([
+      createBuyerActivityService(client).summarize(id),
+      client
+        .from("buyer_questions")
+        .select("question, selected_room, created_at, needs_agent_followup")
+        .eq("property_id", id)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false })
+        .limit(5),
+      client
+        .from("property_assets")
+        .select("title, asset_type, last_generated_at")
+        .eq("property_id", id)
+        .order("last_generated_at", { ascending: false })
+        .limit(1),
+    ]);
+    const topTopic = Object.entries(activitySummary.topTopics).sort((a, b) => b[1] - a[1])[0];
+    const lastAsset = recentAssets?.[0] ?? null;
+
     return (
       <div className="space-y-6">
         <div>
@@ -150,14 +169,63 @@ export default async function PropertySectionPage({ params }: SectionPageProps) 
         </div>
 
         {dna && (
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             <OverviewCard title="Knowledge Score" value={`${dna.health.knowledgeScore}`} />
             <OverviewCard title="Marketing Score" value={`${dna.health.marketingScore}`} />
             <OverviewCard title="Buyer Readiness" value={`${dna.health.buyerReadinessScore}`} />
+            <OverviewCard title="Most Asked Topic" value={topTopic ? `${topTopic[0]} (${topTopic[1]})` : "—"} />
+            <OverviewCard
+              title="Last Generated Asset"
+              value={lastAsset ? lastAsset.title : "None yet"}
+            />
           </div>
         )}
 
         <MakeBetterPanel recommendations={recommendations} />
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent Buyer Questions</CardTitle>
+              <CardDescription>Latest questions from the QR tour</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              {(recentQuestions ?? []).length === 0 ? (
+                <p className="text-muted-foreground">No buyer questions yet.</p>
+              ) : (
+                (recentQuestions ?? []).map((item) => (
+                  <div key={`${item.created_at}-${item.question}`} className="rounded-lg border border-border p-3">
+                    <p className="font-medium">{item.question}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {item.selected_room ?? "Whole Property"} ·{" "}
+                      {new Date(item.created_at).toLocaleString()}
+                      {item.needs_agent_followup ? " · Needs follow-up" : ""}
+                    </p>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent Recommendations</CardTitle>
+              <CardDescription>From Property DNA analysis</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              {recommendations.length === 0 ? (
+                <p className="text-muted-foreground">No recommendations right now.</p>
+              ) : (
+                recommendations.slice(0, 5).map((item) => (
+                  <div key={item.id} className="rounded-lg border border-border p-3">
+                    <p className="font-medium">{item.title}</p>
+                    <p className="mt-1 text-muted-foreground">{item.detail}</p>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </div>
 
         <div className="grid gap-6 lg:grid-cols-3">
           <Card className="lg:col-span-2">
@@ -268,7 +336,7 @@ export default async function PropertySectionPage({ params }: SectionPageProps) 
     case "generated-assets": {
       const { data: assets } = await client
         .from("property_assets")
-        .select("asset_type, title, content, status, last_generated_at")
+        .select("asset_type, title, content, file_url, status, last_generated_at")
         .eq("property_id", id);
       return (
         <PropertyStudio

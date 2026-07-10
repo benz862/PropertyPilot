@@ -99,6 +99,47 @@ export function generateRecommendations(dna: PropertyDNA, input: RecommendationI
     );
   }
 
+  for (const topic of detectRepeatedTopics(dna)) {
+    recs.push(
+      rec(
+        `topic-${topic.id}`,
+        topic.title,
+        topic.detail,
+        "important",
+        "buyer_signal",
+      ),
+    );
+  }
+
+  const weakRooms = dna.rooms.filter(
+    (room) => room.id !== null && room.features.length + room.buyerTalkingPoints.length < 2,
+  );
+  if (weakRooms.length > 0) {
+    recs.push(
+      rec(
+        "weak-rooms",
+        "Strengthen room coverage",
+        `${weakRooms.slice(0, 3).map((room) => room.name).join(", ")} need more features or talking points.`,
+        "important",
+        "knowledge",
+      ),
+    );
+  }
+
+  const assetTypes = new Set(dna.generatedAssets.map((asset) => asset.type));
+  if (!assetTypes.has("buyer_brochure") && dna.health.marketingScore >= 30) {
+    recs.push(rec("missing-brochure", "Generate a buyer brochure", "You have enough Property DNA to generate a buyer brochure.", "important", "marketing"));
+  }
+  if (!assetTypes.has("qr_sign") && dna.meta.publishStatus === "published") {
+    recs.push(rec("missing-qr-signs", "Generate QR room signs", "Publish is live but QR signs are not generated yet. Print signs for each room.", "important", "publishing"));
+  }
+  if (!assetTypes.has("buyer_faq") && dna.buyerQuestions.length >= 2) {
+    recs.push(rec("missing-faq", "Generate a Buyer FAQ", "Buyer questions are coming in. Generate an FAQ from Property DNA.", "important", "marketing"));
+  }
+  if (!assetTypes.has("neighborhood_guide") && dna.neighborhood.notes.length === 0) {
+    recs.push(rec("no-neighborhood-guide", "Add a Neighborhood Guide", "Neighborhood information is thin. Add notes and generate a guide.", "optional", "marketing"));
+  }
+
   const unanswered = dna.buyerQuestions.filter((question) => question.needsAgentFollowup).length;
   if (unanswered >= 3) {
     recs.push(
@@ -121,6 +162,47 @@ function findStrongestRoom(dna: PropertyDNA) {
     .filter((entry) => entry.score >= 3)
     .sort((a, b) => b.score - a.score);
   return ranked[0]?.room ?? null;
+}
+
+function detectRepeatedTopics(dna: PropertyDNA) {
+  const topics: Array<{ id: string; title: string; detail: string; keywords: string[] }> = [
+    {
+      id: "roof",
+      title: "Buyers keep asking about the roof",
+      detail: "Multiple questions mention the roof. Add roof age and condition to Property DNA.",
+      keywords: ["roof", "shingle"],
+    },
+    {
+      id: "school",
+      title: "Buyers keep asking about schools",
+      detail: "School questions are repeating. Add school district and nearby schools to the neighborhood section.",
+      keywords: ["school", "district"],
+    },
+    {
+      id: "tax",
+      title: "Buyers keep asking about taxes",
+      detail: "Tax questions are coming up often. Add annual tax details or where to verify them.",
+      keywords: ["tax", "taxes", "property tax"],
+    },
+    {
+      id: "utilities",
+      title: "Buyers keep asking about utilities",
+      detail: "Utility cost questions are repeating. Add average utility notes to Property DNA.",
+      keywords: ["utility", "utilities", "electric", "water bill", "gas bill"],
+    },
+  ];
+
+  const counts = new Map<string, number>();
+  for (const question of dna.buyerQuestions) {
+    const text = question.question.toLowerCase();
+    for (const topic of topics) {
+      if (topic.keywords.some((keyword) => text.includes(keyword))) {
+        counts.set(topic.id, (counts.get(topic.id) ?? 0) + 1);
+      }
+    }
+  }
+
+  return topics.filter((topic) => (counts.get(topic.id) ?? 0) >= 2);
 }
 
 function findRepeatedQuestions(dna: PropertyDNA, threshold: number) {
