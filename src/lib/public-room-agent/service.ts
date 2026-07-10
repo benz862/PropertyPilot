@@ -2,6 +2,8 @@ import OpenAI from "openai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { env } from "@/lib/env";
+import { createBuyerActivityService } from "@/lib/property-dna/buyer-activity";
+import { createGHLSyncService } from "@/lib/property-dna/ghl-sync";
 import { getPhotoPublicUrl } from "@/lib/storage/photo-url";
 import type { Database, Photo, Property, PropertyIntelligenceRow, PropertyRoom } from "@/types/database";
 
@@ -189,8 +191,16 @@ export async function askRoomQuestion(
     needsAgentFollowup,
   });
 
+  const activity = createBuyerActivityService(client);
+  await activity.recordEvent({
+    propertyId: property.id,
+    type: needsAgentFollowup ? "unknown_question" : "question_asked",
+    room: selectedRoom?.name ?? input.selectedRoom,
+    metadata: { confidence, inputType: input.inputType },
+  });
+
   if (needsAgentFollowup && input.buyerEmail && input.buyerName) {
-    await createLeadFromQuestion(client, property.id, input, questionId);
+    await createLeadFromQuestion(client, property, input, questionId, { answer, needsAgentFollowup });
   }
 
   return {
@@ -232,7 +242,7 @@ export async function attachLeadToQuestion(
 
   await createLeadFromQuestion(
     client,
-    property.id,
+    property,
     {
       selectedRoom: question.selected_room ?? "Whole Property",
       question: question.question,
@@ -242,6 +252,7 @@ export async function attachLeadToQuestion(
       buyerPhone: input.buyerPhone ?? null,
     },
     input.questionId,
+    { needsAgentFollowup: true },
   );
 
   return { saved: true };
@@ -483,23 +494,56 @@ async function logBuyerQuestion(
 
 async function createLeadFromQuestion(
   client: Client,
-  propertyId: string,
+  property: Property,
   input: AskRoomQuestionInput,
   questionId: string | null,
+  extras: { answer?: string; needsAgentFollowup?: boolean } = {},
 ) {
-  await client.from("leads").insert({
-    property_id: propertyId,
-    name: input.buyerName ?? null,
-    email: input.buyerEmail ?? null,
-    phone: input.buyerPhone ?? null,
-    consent_given: true,
-    requested_pdf: false,
-    requested_showing: false,
-    notes: [`Room: ${input.selectedRoom}`, `Question: ${input.question}`, questionId ? `Question ID: ${questionId}` : null]
-      .filter(Boolean)
-      .join("\n"),
-    crm_status: "new",
+  const { data: lead } = await client
+    .from("leads")
+    .insert({
+      property_id: property.id,
+      name: input.buyerName ?? null,
+      email: input.buyerEmail ?? null,
+      phone: input.buyerPhone ?? null,
+      consent_given: true,
+      requested_pdf: false,
+      requested_showing: false,
+      notes: [`Room: ${input.selectedRoom}`, `Question: ${input.question}`, questionId ? `Question ID: ${questionId}` : null]
+        .filter(Boolean)
+        .join("\n"),
+      crm_status: "new",
+    })
+    .select("id")
+    .maybeSingle();
+
+  const activity = createBuyerActivityService(client);
+  await activity.recordEvent({
+    propertyId: property.id,
+    type: "lead_submitted",
+    room: input.selectedRoom,
   });
+
+  // GHL is isolated: syncing a lead must never break local capture.
+  try {
+    const ghl = createGHLSyncService(client);
+    if (ghl.isConfigured()) {
+      await ghl.syncBuyerLead({
+        propertyId: property.id,
+        propertyAddress: formatAddress(property),
+        selectedRoom: input.selectedRoom,
+        question: input.question,
+        answer: extras.answer ?? "",
+        needsAgentFollowup: extras.needsAgentFollowup ?? true,
+        buyerName: input.buyerName ?? null,
+        buyerEmail: input.buyerEmail ?? null,
+        buyerPhone: input.buyerPhone ?? null,
+        leadId: lead?.id,
+      });
+    }
+  } catch {
+    // best-effort GHL sync
+  }
 }
 
 function formatAddress(property: Property): string {
