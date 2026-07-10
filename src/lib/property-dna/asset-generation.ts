@@ -41,13 +41,25 @@ const ASSET_DEFINITIONS: AssetDefinition[] = [
   { type: "buyer_brochure", title: "Buyer Brochure", section: "print", generate: generateBuyerBrochure },
   { type: "open_house_flyer", title: "Open House Flyer", section: "print", generate: generateOpenHouseFlyer },
   { type: "qr_sign", title: "QR Sign", section: "digital", generate: generateQrSign },
+  { type: "qr_code_png", title: "QR Code", section: "digital", generate: generateQrSign },
+  { type: "property_website", title: "Property Website Copy", section: "digital", generate: generatePropertyWebsite },
+  { type: "qr_tour", title: "QR Tour Copy", section: "digital", generate: generateQrTour },
+  { type: "voice_intro", title: "Voice Greetings", section: "voice", generate: generateVoiceIntroductions },
+  { type: "voice_agent_knowledge_base", title: "Voice Agent KB", section: "voice", generate: generateVoiceKnowledgeBase },
   { type: "mls_description", title: "MLS Description", section: "marketing", generate: generateMlsDescription },
   { type: "luxury_description", title: "Luxury Description", section: "marketing", generate: generateLuxuryDescription },
   { type: "property_description", title: "Property Description", section: "marketing", generate: generatePropertyDescription },
+  { type: "family_description", title: "Family Buyer Copy", section: "marketing", generate: generateFamilyDescription },
+  { type: "investor_description", title: "Investor Copy", section: "marketing", generate: generateInvestorDescription },
   { type: "buyer_faq", title: "Buyer FAQ", section: "buyer", generate: generateBuyerFaq },
   { type: "showing_notes", title: "Showing Notes", section: "buyer", generate: generateShowingNotes },
-  { type: "voice_intro", title: "Voice Introductions", section: "voice", generate: generateVoiceIntroductions },
-  { type: "neighborhood_guide", title: "Neighborhood Guide", section: "marketing", generate: generateNeighborhoodGuide },
+  { type: "neighborhood_guide", title: "Neighborhood Guide", section: "buyer", generate: generateNeighborhoodGuide },
+  { type: "facebook_post", title: "Facebook Post", section: "social", generate: generateFacebookPost },
+  { type: "instagram_post", title: "Instagram Caption", section: "social", generate: generateInstagramPost },
+  { type: "linkedin_post", title: "LinkedIn Post", section: "social", generate: generateLinkedInPost },
+  { type: "email_just_listed", title: "Just Listed Email", section: "email", generate: generateJustListedEmail },
+  { type: "email_open_house", title: "Open House Email", section: "email", generate: generateOpenHouseEmail },
+  { type: "email_price_reduction", title: "Price Reduction Email", section: "email", generate: generatePriceReductionEmail },
 ];
 
 export function listAssetDefinitions(): Array<Omit<AssetDefinition, "generate">> {
@@ -288,6 +300,176 @@ function generateNeighborhoodGuide(dna: PropertyDNA): string {
     .map(([title, facts]) => [`## ${title}`, bulletList(facts.map(factText), "")].join("\n"))
     .join("\n\n");
   return body || "Neighborhood details will appear here once added to Property DNA.";
+}
+
+function generatePropertyWebsite(dna: PropertyDNA): string {
+  return [
+    `# ${dna.basic.address ?? "Property Website"}`,
+    "",
+    "## Hero",
+    dna.basic.summary ?? dna.basic.mlsDescription ?? "A wonderful home waiting for its next owner.",
+    "",
+    "## Highlights",
+    bulletList(topFeatures(dna, 8), "Feature details coming soon."),
+    "",
+    "## Rooms",
+    roomHighlights(dna, 8),
+    "",
+    "## Neighborhood",
+    bulletList(dna.neighborhood.notes.map(factText), "Neighborhood notes coming soon."),
+    "",
+    agentBlock(dna),
+  ].join("\n");
+}
+
+function generateQrTour(dna: PropertyDNA): string {
+  return [
+    `# QR Tour — ${shortAddress(dna)}`,
+    "",
+    "Scan room QR codes to ask questions about this home in real time.",
+    "",
+    "## Rooms on tour",
+    bulletList(dna.rooms.map((room) => room.name), "Whole Property"),
+    "",
+    "## Sample questions buyers ask",
+    bulletList(
+      dna.buyerQuestions.slice(0, 5).map((question) => question.question),
+      "- How old is the roof?\n- What schools are nearby?\n- What are the utility costs?",
+    ),
+  ].join("\n");
+}
+
+function generateVoiceKnowledgeBase(dna: PropertyDNA): string {
+  const systemFacts = Object.values(dna.systems)
+    .filter((fact): fact is Fact => Boolean(fact))
+    .map((fact) => `- ${fact.label}: ${fact.value}`);
+  const roomFacts = dna.rooms.flatMap((room) =>
+    [...room.features, ...room.buyerTalkingPoints].map((item) => `- ${room.name}: ${item}`),
+  );
+  return [
+    "# Voice Agent Knowledge Base",
+    "",
+    "## Property Basics",
+    basicsBlock(dna),
+    "",
+    "## Systems",
+    bulletList(systemFacts, "No system details recorded."),
+    "",
+    "## Room Knowledge",
+    bulletList(roomFacts.slice(0, 20), "Add room features to improve answers."),
+    "",
+    "## Neighborhood",
+    bulletList(dna.neighborhood.notes.map(factText), "No neighborhood notes yet."),
+  ].join("\n");
+}
+
+function generateFamilyDescription(dna: PropertyDNA): string {
+  const schools = dna.neighborhood.schools.map(factText).join(", ");
+  return [
+    `Welcome home to ${shortAddress(dna)} — a comfortable fit for family life.`,
+    dna.basic.beds != null ? `With ${dna.basic.beds} bedrooms` : "",
+    schools ? `near ${schools}` : "",
+    topFeatures(dna, 4).length ? `, you'll love ${joinList(topFeatures(dna, 4))}.` : ".",
+    dna.basic.summary ? ` ${dna.basic.summary}` : "",
+  ]
+    .filter(Boolean)
+    .join("")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function generateInvestorDescription(dna: PropertyDNA): string {
+  return [
+    `Investment opportunity at ${shortAddress(dna)}.`,
+    dna.basic.price != null ? `Listed at $${dna.basic.price.toLocaleString()}.` : "",
+    dna.basic.squareFeet != null ? `${dna.basic.squareFeet.toLocaleString()} sq ft.` : "",
+    topFeatures(dna, 4).length ? `Key features: ${joinList(topFeatures(dna, 4))}.` : "",
+    "Verify financials, rents, and condition with your advisor.",
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function generateFacebookPost(dna: PropertyDNA): string {
+  return [
+    `🏡 ${dna.basic.address ?? "New listing"}`,
+    dna.basic.price != null ? `💰 $${dna.basic.price.toLocaleString()}` : "",
+    basicsBlock(dna),
+    "",
+    topFeatures(dna, 3).join(" · ") || dna.basic.summary || "Schedule a showing today.",
+    "",
+    "Message me for details or scan the QR tour on site.",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function generateInstagramPost(dna: PropertyDNA): string {
+  const tags = ["#realestate", "#newlisting", "#homeforsale", "#propertypilot"];
+  return [
+    `${shortAddress(dna)} ✨`,
+    dna.basic.summary?.slice(0, 200) ?? generateMlsDescription(dna).slice(0, 200),
+    "",
+    tags.join(" "),
+  ].join("\n");
+}
+
+function generateLinkedInPost(dna: PropertyDNA): string {
+  return [
+    `Just listed: ${dna.basic.address ?? shortAddress(dna)}`,
+    "",
+    generateMlsDescription(dna).slice(0, 400),
+    "",
+    "Reach out for a private showing or investor package.",
+  ].join("\n");
+}
+
+function generateJustListedEmail(dna: PropertyDNA): string {
+  return [
+    `Subject: Just Listed — ${shortAddress(dna)}`,
+    "",
+    `I'm excited to share a new listing at ${dna.basic.address ?? shortAddress(dna)}.`,
+    "",
+    basicsBlock(dna),
+    "",
+    topFeatures(dna, 5).map((feature) => `• ${feature}`).join("\n") || "• Details available on request.",
+    "",
+    "Reply to schedule a showing or request the buyer brochure.",
+    "",
+    agentBlock(dna),
+  ].join("\n");
+}
+
+function generateOpenHouseEmail(dna: PropertyDNA): string {
+  return [
+    `Subject: Open House — ${shortAddress(dna)}`,
+    "",
+    `You're invited to tour ${dna.basic.address ?? shortAddress(dna)}.`,
+    "",
+    "## What to expect",
+    bulletList(topFeatures(dna, 5), "A welcoming home ready for your visit."),
+    "",
+    "Scan the QR codes in each room to ask questions on the spot.",
+    "",
+    agentBlock(dna),
+  ].join("\n");
+}
+
+function generatePriceReductionEmail(dna: PropertyDNA): string {
+  return [
+    `Subject: Price Update — ${shortAddress(dna)}`,
+    "",
+    `Great news on ${dna.basic.address ?? shortAddress(dna)}.`,
+    dna.basic.price != null ? `Now offered at $${dna.basic.price.toLocaleString()}.` : "",
+    "",
+    generateMlsDescription(dna).slice(0, 300),
+    "",
+    "Reply if you'd like a private showing.",
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 function basicsBlock(dna: PropertyDNA): string {

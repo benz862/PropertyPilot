@@ -19,6 +19,7 @@ interface StudioAsset {
   asset_type: string;
   title: string;
   content: string | null;
+  file_url: string | null;
   status: string;
   last_generated_at: string;
 }
@@ -139,6 +140,13 @@ export function PropertyStudio({ propertyId, sections, definitions, initialAsset
                             Copy
                           </Button>
                         </>
+                      )}
+                      {asset?.file_url && (
+                        <Button size="sm" variant="ghost" asChild>
+                          <a href={asset.file_url} target="_blank" rel="noopener noreferrer" download>
+                            Download
+                          </a>
+                        </Button>
                       )}
                     </div>
                     {isExpanded && asset?.content && (

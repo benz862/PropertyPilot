@@ -49,7 +49,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       return NextResponse.json({ data: null, error: "Property not found" }, { status: 404 });
     }
 
-    const service = createAssetGenerationService(client);
+    const service = createAssetGenerationService(client, env.appUrl);
     const data = body.assetType
       ? [await service.regenerate(dna, body.assetType)].filter(Boolean)
       : await service.generateAll(dna);
