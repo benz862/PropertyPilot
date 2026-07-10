@@ -76,13 +76,10 @@ export function answerQuestionFromDNA(dna: PropertyDNA, input: AnswerQuestionInp
   }
 
   const top = ranked.slice(0, 4);
+  const topScore = ranked[0]?.score ?? 0;
   const answer = composeAnswer(top.map((item) => item.chunk.text));
   const needsVerification = isDisclosureSensitive(input.question);
-  const confidence: Confidence = needsVerification
-    ? "low"
-    : ranked[0].score >= 4
-      ? "high"
-      : "medium";
+  const confidence: Confidence = needsVerification ? "low" : topScore >= 4 ? "high" : "medium";
 
   return {
     answer: needsVerification ? `${answer}\n\nPlease verify this with the listing agent and official records.` : answer,
@@ -145,7 +142,12 @@ export function buildChunks(dna: PropertyDNA): Chunk[] {
 
   for (const doc of dna.documents) {
     const text = doc.summary ?? doc.extractedText;
-    if (text) chunks.push({ text: `${doc.filename}: ${text}`.slice(0, 600), sourceRef: doc.sourceRefs[0] });
+    if (text) {
+      chunks.push({
+        text: `${doc.filename}: ${text}`.slice(0, 600),
+        sourceRef: doc.sourceRefs[0] ?? { sourceType: "document", sourceId: doc.id, label: doc.filename },
+      });
+    }
   }
 
   return chunks;

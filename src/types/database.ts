@@ -415,6 +415,21 @@ export interface PropertyRoom {
   updated_at: string;
 }
 
+export interface PropertyAssetRow {
+  id: string;
+  property_id: string;
+  asset_type: string;
+  section: string;
+  title: string;
+  content: string | null;
+  file_url: string | null;
+  status: string;
+  source_dna_version: number | null;
+  last_generated_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface BuyerQuestionRow {
   id: string;
   organization_id: string | null;
@@ -746,6 +761,7 @@ export interface Database {
       neighborhood_intelligence: TableDef<NeighborhoodIntelligenceRow>;
       property_intelligence: TableDef<PropertyIntelligenceRow>;
       property_rooms: TableDef<PropertyRoom>;
+      property_assets: TableDef<PropertyAssetRow>;
       buyer_questions: TableDef<BuyerQuestionRow>;
     };
     Views: Record<string, never>;
