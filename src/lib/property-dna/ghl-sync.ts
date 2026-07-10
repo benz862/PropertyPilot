@@ -22,6 +22,7 @@ export interface BuyerLeadSyncResult {
   synced: boolean;
   skipped: boolean;
   contactId: string | null;
+  opportunityId: string | null;
   taskCreated: boolean;
   tags: string[];
   error: string | null;
@@ -47,7 +48,7 @@ export class GHLSyncService {
     const tags = buildBuyerTags(input);
 
     if (!this.ghl.isConfigured()) {
-      return { synced: false, skipped: true, contactId: null, taskCreated: false, tags, error: null };
+      return { synced: false, skipped: true, contactId: null, opportunityId: null, taskCreated: false, tags, error: null };
     }
 
     try {
@@ -72,6 +73,8 @@ export class GHLSyncService {
       await this.ghl.addContactTags(contact.contactId, tags);
       await this.ghl.addContactNoteText(contact.contactId, buildNote(input));
 
+      const opportunity = await this.ghl.createOpportunity(contact.contactId, payload);
+
       let taskCreated = false;
       if (input.needsAgentFollowup) {
         await this.ghl.createContactTask(contact.contactId, {
@@ -81,10 +84,18 @@ export class GHLSyncService {
         taskCreated = true;
       }
 
-      return { synced: true, skipped: false, contactId: contact.contactId, taskCreated, tags, error: null };
+      return {
+        synced: true,
+        skipped: false,
+        contactId: contact.contactId,
+        opportunityId: opportunity.opportunityId,
+        taskCreated,
+        tags,
+        error: null,
+      };
     } catch (error) {
       const message = error instanceof Error ? error.message : "GHL sync failed";
-      return { synced: false, skipped: false, contactId: null, taskCreated: false, tags, error: message };
+      return { synced: false, skipped: false, contactId: null, opportunityId: null, taskCreated: false, tags, error: message };
     }
   }
 }
