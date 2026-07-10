@@ -35,7 +35,7 @@ const navItems = [
   { href: realtorRoutes.documents, label: "Documents", icon: FileText },
   { href: realtorRoutes.knowledgeCenter, label: "Knowledge Center", icon: BookOpen },
   { href: realtorRoutes.voiceNotes, label: "Voice Notes", icon: Mic },
-  { href: realtorRoutes.generatedAssets, label: "Generated Assets", icon: Sparkles },
+  { href: realtorRoutes.generatedAssets, label: "Property Studio", icon: Sparkles },
   { href: realtorRoutes.billing, label: "Billing", icon: CreditCard },
   { href: realtorRoutes.integrations, label: "Integrations", icon: Link2 },
   { href: realtorRoutes.settings, label: "Settings", icon: Settings },

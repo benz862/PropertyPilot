@@ -11,15 +11,28 @@ import {
 } from "@/components/realtor/property-sections";
 import {
   BuyerQuestionsSection,
-  GeneratedAssetsSection,
   PropertyAnalyticsSection,
   PropertyTwinSection,
   PublishingSection,
   SettingsSection,
   VoiceNotesSection,
 } from "@/components/realtor/property-section-views";
+import {
+  BuyerActivitySection,
+  PropertyDNASection,
+  RoomsSection,
+} from "@/components/realtor/property-dna-views";
+import { MakeBetterPanel } from "@/components/property/make-better-panel";
+import { PropertyStudio } from "@/components/property/property-studio";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { env } from "@/lib/env";
+import {
+  STUDIO_SECTIONS,
+  createBuyerActivityService,
+  createPropertyDNAService,
+  generateRecommendations,
+  listAssetDefinitions,
+} from "@/lib/property-dna";
 import { calculatePropertyHealth } from "@/lib/property-health/score";
 import { getSectionTitle } from "@/lib/property-editor/sections";
 import { loadPropertyTwinContext } from "@/lib/repositories/property-repository";
@@ -75,12 +88,15 @@ interface SectionPageProps {
 
 const validSections = new Set<PropertyEditorSection>([
   "overview",
+  "property-dna",
+  "rooms",
   "property-twin",
   "knowledge",
   "photos",
   "documents",
   "voice-notes",
   "buyer-questions",
+  "buyer-activity",
   "analytics",
   "generated-assets",
   "publishing",
@@ -122,6 +138,8 @@ export default async function PropertySectionPage({ params }: SectionPageProps) 
   const health = calculatePropertyHealth(context, voiceNotes.length);
 
   if (sectionKey === "overview") {
+    const dna = await createPropertyDNAService(client).getPropertyDNA(id);
+    const recommendations = dna ? generateRecommendations(dna) : [];
     return (
       <div className="space-y-6">
         <div>
@@ -130,6 +148,16 @@ export default async function PropertySectionPage({ params }: SectionPageProps) 
             {context.property.street}, {context.property.city}
           </p>
         </div>
+
+        {dna && (
+          <div className="grid gap-4 sm:grid-cols-3">
+            <OverviewCard title="Knowledge Score" value={`${dna.health.knowledgeScore}`} />
+            <OverviewCard title="Marketing Score" value={`${dna.health.marketingScore}`} />
+            <OverviewCard title="Buyer Readiness" value={`${dna.health.buyerReadinessScore}`} />
+          </div>
+        )}
+
+        <MakeBetterPanel recommendations={recommendations} />
 
         <div className="grid gap-6 lg:grid-cols-3">
           <Card className="lg:col-span-2">
@@ -179,6 +207,31 @@ export default async function PropertySectionPage({ params }: SectionPageProps) 
   }
 
   switch (sectionKey) {
+    case "property-dna": {
+      const dna = await createPropertyDNAService(client).getPropertyDNA(id);
+      if (!dna) return <SectionPlaceholder title={title} section={sectionKey} />;
+      return <PropertyDNASection dna={dna} />;
+    }
+    case "rooms": {
+      const dna = await createPropertyDNAService(client).getPropertyDNA(id);
+      if (!dna) return <SectionPlaceholder title={title} section={sectionKey} />;
+      return <RoomsSection rooms={dna.rooms} />;
+    }
+    case "buyer-activity": {
+      const [summary, { data: questions }] = await Promise.all([
+        createBuyerActivityService(client).summarize(id),
+        client
+          .from("buyer_questions")
+          .select(
+            "id, question, selected_room, confidence, needs_agent_followup, buyer_name, buyer_email, created_at",
+          )
+          .eq("property_id", id)
+          .is("deleted_at", null)
+          .order("created_at", { ascending: false })
+          .limit(50),
+      ]);
+      return <BuyerActivitySection summary={summary} questions={questions ?? []} />;
+    }
     case "property-twin":
       return <PropertyTwinSection context={context} />;
     case "knowledge":
@@ -213,11 +266,18 @@ export default async function PropertySectionPage({ params }: SectionPageProps) 
       );
     }
     case "generated-assets": {
-      const { data: pdfs } = await client
-        .from("generated_pdfs")
-        .select("*")
+      const { data: assets } = await client
+        .from("property_assets")
+        .select("asset_type, title, content, status, last_generated_at")
         .eq("property_id", id);
-      return <GeneratedAssetsSection pdfs={pdfs ?? []} />;
+      return (
+        <PropertyStudio
+          propertyId={id}
+          sections={STUDIO_SECTIONS}
+          definitions={listAssetDefinitions()}
+          initialAssets={assets ?? []}
+        />
+      );
     }
     case "publishing":
       return (
