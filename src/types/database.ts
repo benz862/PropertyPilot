@@ -204,6 +204,7 @@ export interface Property {
   voice_personality_id?: string | null;
   ai_policy_id?: string | null;
   published_at?: string | null;
+  dna_version?: number;
   deleted_at?: string | null;
   created_at: string;
   updated_at: string;

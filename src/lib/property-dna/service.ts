@@ -43,6 +43,28 @@ export class PropertyDNAService {
     return generateRecommendations(dna);
   }
 
+  /** Rebuild Property DNA, bump version, mark studio assets stale, refresh recommendations. */
+  async rebuildPropertyDNA(propertyId: string): Promise<{
+    dna: PropertyDNA;
+    recommendations: Recommendation[];
+  }> {
+    const property = await this.findProperty(propertyId);
+    if (!property) throw new Error("Property not found");
+
+    const newVersion = (property.dna_version ?? 1) + 1;
+    await this.client.from("properties").update({ dna_version: newVersion }).eq("id", propertyId);
+    await this.client
+      .from("property_assets")
+      .update({ status: "needs_refresh" })
+      .eq("property_id", propertyId);
+
+    const refreshed: Property = { ...property, dna_version: newVersion };
+    const dna = await this.assembleFor(refreshed);
+    const recommendations = generateRecommendations(dna);
+    dna.health.recommendations = recommendations.map((item) => item.title);
+    return { dna, recommendations };
+  }
+
   private async assembleFor(property: Property): Promise<PropertyDNA> {
     const [rooms, intelligence, knowledgeObjects, documents, voiceNotes, photos, questions, assets, agent] =
       await Promise.all([
@@ -130,6 +152,7 @@ export class PropertyDNAService {
         createdAt: question.created_at,
       })),
       generatedAssets: assets.map(mapAssetRecord),
+      dnaVersion: property.dna_version ?? 1,
     };
 
     return assemblePropertyDNA(input);
