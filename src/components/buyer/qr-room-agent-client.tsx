@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { Mic, Send } from "lucide-react";
 
@@ -39,7 +39,32 @@ type SpeechRecognitionLike = {
   onerror: (() => void) | null;
 };
 
+function createSessionId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `session-${Date.now()}`;
+}
+
+async function trackBuyerEvent(
+  slug: string,
+  sessionId: string,
+  type: "page_open" | "room_selected" | "session_started" | "session_ended",
+  room: string,
+) {
+  try {
+    await fetch(`/api/public/properties/${slug}/event`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type, room, sessionId }),
+    });
+  } catch {
+    // analytics must never block the buyer
+  }
+}
+
 export function QrRoomAgentClient({ property }: QrRoomAgentClientProps) {
+  const sessionId = useRef(createSessionId());
   const [selectedRoomKey, setSelectedRoomKey] = useState(
     roomKey(property.rooms[0]?.id ?? null, property.rooms[0]?.name ?? "Whole Property"),
   );
@@ -59,6 +84,21 @@ export function QrRoomAgentClient({ property }: QrRoomAgentClientProps) {
       name: name || "Whole Property",
     };
   }, [selectedRoomKey]);
+
+  useEffect(() => {
+    const session = sessionId.current;
+    void trackBuyerEvent(property.slug, session, "page_open", selectedRoom.name);
+    void trackBuyerEvent(property.slug, session, "session_started", selectedRoom.name);
+
+    return () => {
+      void trackBuyerEvent(property.slug, session, "session_ended", selectedRoom.name);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- session lifecycle once per property visit
+  }, [property.slug]);
+
+  useEffect(() => {
+    void trackBuyerEvent(property.slug, sessionId.current, "room_selected", selectedRoom.name);
+  }, [property.slug, selectedRoom.name]);
 
   async function ask(inputType: "voice" | "text", overrideQuestion?: string) {
     const text = (overrideQuestion ?? question).trim();
@@ -252,6 +292,12 @@ export function QrRoomAgentClient({ property }: QrRoomAgentClientProps) {
             </div>
           )}
         </div>
+
+        <p className="mt-6 text-xs leading-5 text-muted-foreground">
+          PropertyPilot provides AI-generated answers based on information supplied for this property. Details should be
+          verified with the listing agent, disclosures, inspections, MLS data, and official records before making
+          decisions.
+        </p>
       </section>
     </main>
   );

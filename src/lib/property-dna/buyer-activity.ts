@@ -9,20 +9,26 @@ export type BuyerEventType =
   | "page_open"
   | "room_selected"
   | "question_asked"
+  | "answer_returned"
   | "answer_given"
   | "unknown_question"
   | "lead_submitted"
-  | "asset_downloaded";
+  | "asset_downloaded"
+  | "session_started"
+  | "session_ended";
 
 const EVENT_MAP: Record<BuyerEventType, AnalyticsEventType> = {
   qr_scan: "qr_scan",
   page_open: "qr_scan",
   room_selected: "poi_viewed",
   question_asked: "question_asked",
+  answer_returned: "question_asked",
   answer_given: "question_asked",
   unknown_question: "feature_requested",
   lead_submitted: "showing_request",
   asset_downloaded: "pdf_download",
+  session_started: "time_spent",
+  session_ended: "time_spent",
 };
 
 export interface RecordBuyerEventInput {
@@ -40,7 +46,9 @@ export interface BuyerActivitySummary {
   unknownQuestions: number;
   leads: number;
   downloads: number;
+  sessions: number;
   roomSelections: Record<string, number>;
+  topTopics: Record<string, number>;
 }
 
 /**
@@ -76,7 +84,9 @@ export class BuyerActivityService {
       unknownQuestions: 0,
       leads: 0,
       downloads: 0,
+      sessions: 0,
       roomSelections: {},
+      topTopics: {},
     };
 
     const { data } = await this.client
@@ -95,8 +105,10 @@ export class BuyerActivityService {
           summary.scans += 1;
           break;
         case "question_asked":
+        case "answer_returned":
         case "answer_given":
           summary.questions += 1;
+          trackTopic(summary, row.event_data);
           break;
         case "unknown_question":
         case "feature_requested":
@@ -116,10 +128,32 @@ export class BuyerActivityService {
           if (room) summary.roomSelections[room] = (summary.roomSelections[room] ?? 0) + 1;
           break;
         }
+        case "session_started":
+        case "session_ended":
+          summary.sessions += 1;
+          break;
       }
     }
 
     return summary;
+  }
+}
+
+function trackTopic(summary: BuyerActivitySummary, eventData: unknown) {
+  if (!eventData || typeof eventData !== "object" || !("question" in eventData)) return;
+  const question = String((eventData as Record<string, unknown>).question ?? "").toLowerCase();
+  if (!question) return;
+  const topics: Array<[string, string[]]> = [
+    ["roof", ["roof", "shingle"]],
+    ["school", ["school", "district"]],
+    ["tax", ["tax", "taxes"]],
+    ["hvac", ["hvac", "furnace", "air condition"]],
+    ["utilities", ["utility", "utilities", "electric", "water bill"]],
+  ];
+  for (const [topic, keywords] of topics) {
+    if (keywords.some((keyword) => question.includes(keyword))) {
+      summary.topTopics[topic] = (summary.topTopics[topic] ?? 0) + 1;
+    }
   }
 }
 
