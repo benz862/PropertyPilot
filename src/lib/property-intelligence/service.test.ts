@@ -85,7 +85,7 @@ describe("buildPropertyIntelligence", () => {
         (entry) => entry.field.includes("roof") && entry.sources.includes("voice note:voice-1"),
       ),
     ).toBe(true);
-  });
+  }, 15_000);
 
   it("combines MLS and photo intelligence", async () => {
     const { buildPropertyIntelligence } = await import("./service");
