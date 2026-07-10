@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS property_intelligence (
 CREATE INDEX IF NOT EXISTS idx_property_intelligence_property_id
   ON property_intelligence(property_id);
 
+DROP TRIGGER IF EXISTS property_intelligence_updated_at ON property_intelligence;
 CREATE TRIGGER property_intelligence_updated_at
   BEFORE UPDATE ON property_intelligence
   FOR EACH ROW
@@ -21,6 +22,7 @@ CREATE TRIGGER property_intelligence_updated_at
 
 ALTER TABLE property_intelligence ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS property_intelligence_owner ON property_intelligence;
 CREATE POLICY property_intelligence_owner
   ON property_intelligence FOR ALL
   USING (is_property_owner(property_id))

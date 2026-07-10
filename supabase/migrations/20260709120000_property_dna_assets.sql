@@ -20,6 +20,7 @@ CREATE INDEX IF NOT EXISTS idx_property_assets_property_id ON property_assets(pr
 CREATE UNIQUE INDEX IF NOT EXISTS idx_property_assets_property_type
   ON property_assets(property_id, asset_type);
 
+DROP TRIGGER IF EXISTS property_assets_updated_at ON property_assets;
 CREATE TRIGGER property_assets_updated_at
   BEFORE UPDATE ON property_assets
   FOR EACH ROW
@@ -27,6 +28,7 @@ CREATE TRIGGER property_assets_updated_at
 
 ALTER TABLE property_assets ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS property_assets_owner ON property_assets;
 CREATE POLICY property_assets_owner
   ON property_assets FOR ALL
   USING (is_property_owner(property_id))

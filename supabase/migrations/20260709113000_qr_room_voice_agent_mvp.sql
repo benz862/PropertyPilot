@@ -19,6 +19,7 @@ CREATE INDEX IF NOT EXISTS idx_property_rooms_property_id ON property_rooms(prop
 CREATE UNIQUE INDEX IF NOT EXISTS idx_property_rooms_property_name
   ON property_rooms(property_id, name);
 
+DROP TRIGGER IF EXISTS property_rooms_updated_at ON property_rooms;
 CREATE TRIGGER property_rooms_updated_at
   BEFORE UPDATE ON property_rooms
   FOR EACH ROW
@@ -26,11 +27,13 @@ CREATE TRIGGER property_rooms_updated_at
 
 ALTER TABLE property_rooms ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS property_rooms_owner ON property_rooms;
 CREATE POLICY property_rooms_owner
   ON property_rooms FOR ALL
   USING (is_property_owner(property_id))
   WITH CHECK (is_property_owner(property_id));
 
+DROP POLICY IF EXISTS property_rooms_public_read ON property_rooms;
 CREATE POLICY property_rooms_public_read
   ON property_rooms FOR SELECT
   TO anon, authenticated
