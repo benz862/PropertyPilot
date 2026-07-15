@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "validate:env": "node scripts/validate-env.mjs",
+    "export:zillow": "node scripts/export-zillow-listing.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },

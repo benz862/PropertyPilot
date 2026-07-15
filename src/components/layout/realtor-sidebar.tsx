@@ -18,6 +18,7 @@ import {
   Settings,
   Sparkles,
   Users,
+  WandSparkles,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ import { siteConfig } from "@/lib/config/site";
 
 const navItems = [
   { href: realtorRoutes.dashboard, label: "Dashboard", icon: LayoutDashboard },
+  { href: realtorRoutes.v2, label: "PropertyPilot V2", icon: WandSparkles },
   { href: realtorRoutes.properties, label: "Properties", icon: Building2 },
   { href: realtorRoutes.leads, label: "Leads", icon: Users },
   { href: realtorRoutes.appointments, label: "Appointments", icon: Calendar },

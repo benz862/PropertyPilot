@@ -300,17 +300,56 @@ interface GeneratedAssetsSectionProps {
 }
 
 const ASSET_TYPES = [
-  "Buyer Brochure",
-  "Luxury Brochure",
-  "Feature Sheet",
-  "Flyer",
-  "QR Sign",
-  "Open House Sign",
-  "Social Posts",
-  "Property Description",
-  "Voice Introductions",
-  "FAQ",
-  "Email Templates",
+  {
+    label: "Buyer Brochure",
+    keywords: ["buyer_brochure", "brochure"],
+    preview: "Long-form buyer-facing summary with room highlights and disclaimer.",
+  },
+  {
+    label: "Luxury Brochure",
+    keywords: ["luxury_brochure"],
+    preview: "Polished premium version of the brochure copy.",
+  },
+  {
+    label: "Feature Sheet",
+    keywords: ["feature_sheet"],
+    preview: "Concise one-page facts, upgrades, and systems.",
+  },
+  {
+    label: "Open House Flyer",
+    keywords: ["open_house_flyer"],
+    preview: "Event-focused handout with open house messaging.",
+  },
+  {
+    label: "QR Sign",
+    keywords: ["qr_sign", "qr_code_png"],
+    preview: "Printable sign that drives visitors into the live tour.",
+  },
+  {
+    label: "Social Posts",
+    keywords: ["facebook_post", "instagram_post", "linkedin_post"],
+    preview: "Channel-ready marketing copy variants.",
+  },
+  {
+    label: "Property Description",
+    keywords: ["property_description", "mls_description"],
+    preview: "Reusable listing description for MLS and web.",
+  },
+  {
+    label: "Voice Introductions",
+    keywords: ["voice_intro"],
+    preview: "Room-specific prompts for the voice guide.",
+  },
+  {
+    label: "FAQ",
+    keywords: ["buyer_faq"],
+    preview: "Buyer questions with sourced answers.",
+  },
+  {
+    label: "Email Templates",
+    keywords: ["email_just_listed", "email_open_house", "email_price_reduction"],
+    preview: "Email copy for listing announcements and follow-up.",
+  },
 ] as const;
 
 export function GeneratedAssetsSection({ pdfs }: GeneratedAssetsSectionProps) {
@@ -319,25 +358,33 @@ export function GeneratedAssetsSection({ pdfs }: GeneratedAssetsSectionProps) {
       <div>
         <h2 className="text-2xl font-bold">Generated Assets</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          AI-generated marketing materials · versioned and downloadable
+          Separate outputs for brochures, flyers, QR signs, and listing copy
         </p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {ASSET_TYPES.map((type) => {
-          const pdf = pdfs.find((p) => p.title.toLowerCase().includes(type.toLowerCase().split(" ")[0] ?? ""));
+        {ASSET_TYPES.map((asset) => {
+          const pdf = pdfs.find((p) =>
+            asset.keywords.some((keyword) => p.title.toLowerCase().includes(keyword.replace(/_/g, " "))),
+          );
           return (
-            <Card key={type}>
-              <CardContent className="flex items-center justify-between py-4">
-                <div>
-                  <p className="font-medium">{type}</p>
+            <Card key={asset.label}>
+              <CardContent className="space-y-3 py-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-medium">{asset.label}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{asset.preview}</p>
+                  </div>
+                  <Badge variant={pdf ? "default" : "outline"}>
+                    {pdf ? "Ready" : "Pending"}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <p className="text-xs text-muted-foreground">
                     {pdf ? `v1 · ${new Date(pdf.created_at).toLocaleDateString()}` : "Not generated"}
                   </p>
+                  <span className="font-medium text-foreground">{pdf ? "Published" : "Draft"}</span>
                 </div>
-                <Badge variant={pdf ? "default" : "outline"}>
-                  {pdf ? "Ready" : "Pending"}
-                </Badge>
               </CardContent>
             </Card>
           );

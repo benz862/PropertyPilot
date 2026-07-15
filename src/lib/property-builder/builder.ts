@@ -309,7 +309,7 @@ export class PropertyBuilderService {
       await this.twin.createKnowledgeObject(
         {
           propertyId,
-          category: "miscellaneous",
+          category: "other",
           name: feature,
           summary: `MLS feature: ${feature}`,
           confidenceLevel: "likely",

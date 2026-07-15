@@ -1,5 +1,6 @@
 export const realtorRoutes = {
   dashboard: "/dashboard",
+  v2: "/v2",
   properties: "/properties",
   newProperty: "/properties/new",
   property: (id: string) => `/properties/${id}`,

@@ -13,6 +13,7 @@ import {
 import type {
   CreateKnowledgeFactInput,
   CreateKnowledgeObjectInput,
+  KnowledgeCategory,
   CreatePropertyInput,
   CreateRelationshipInput,
   PropertyProfile,
@@ -137,7 +138,7 @@ export class PropertyTwinRepository {
       .from("knowledge_objects")
       .insert({
         property_id: input.propertyId,
-        category: input.category,
+        category: toStoredKnowledgeCategory(input.category),
         name: input.name,
         summary: input.summary ?? null,
         confidence_level: verificationToConfidence(input.confidenceLevel ?? "unknown"),
@@ -791,6 +792,56 @@ export class PropertyTwinRepository {
 
     return Boolean(data);
   }
+}
+
+type StoredKnowledgeCategory = Database["public"]["Enums"]["knowledge_category"];
+
+/**
+ * The intelligence layer uses broader semantic categories than the original
+ * Postgres enum. Keep persistence compatible until the enum is expanded.
+ */
+export function toStoredKnowledgeCategory(
+  category: KnowledgeCategory | StoredKnowledgeCategory,
+): StoredKnowledgeCategory {
+  const aliases: Partial<Record<KnowledgeCategory, StoredKnowledgeCategory>> = {
+    structural: "foundation",
+    mechanical: "hvac",
+    plumbing: "utilities",
+    landscape: "landscaping",
+    appliances: "appliance",
+  };
+
+  const supported: StoredKnowledgeCategory[] = [
+    "roof",
+    "hvac",
+    "kitchen",
+    "bathroom",
+    "pool",
+    "electrical",
+    "foundation",
+    "garage",
+    "flex_space",
+    "windows",
+    "driveway",
+    "landscaping",
+    "deck",
+    "fireplace",
+    "solar",
+    "appliance",
+    "well",
+    "septic",
+    "security",
+    "neighborhood",
+    "schools",
+    "utilities",
+    "other",
+  ];
+
+  if (supported.includes(category as StoredKnowledgeCategory)) {
+    return category as StoredKnowledgeCategory;
+  }
+
+  return aliases[category as KnowledgeCategory] ?? "other";
 }
 
 function verificationToConfidence(

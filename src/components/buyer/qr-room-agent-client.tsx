@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import { Mic, Send } from "lucide-react";
+import { FileText, Mic, Send, Volume2 } from "lucide-react";
 
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -76,6 +76,7 @@ export function QrRoomAgentClient({ property }: QrRoomAgentClientProps) {
   const [leadEmail, setLeadEmail] = useState("");
   const [leadPhone, setLeadPhone] = useState("");
   const [leadSaved, setLeadSaved] = useState(false);
+  const [requestingFeatureSheet, setRequestingFeatureSheet] = useState(false);
 
   const selectedRoom = useMemo(() => {
     const [id, name] = selectedRoomKey.split("::");
@@ -123,6 +124,7 @@ export function QrRoomAgentClient({ property }: QrRoomAgentClientProps) {
       }
       setAnswer(body.data);
       setQuestion("");
+      speak(body.data.answer);
     } catch (error) {
       setAnswer({
         answer: error instanceof Error ? error.message : "I could not answer that right now.",
@@ -165,7 +167,7 @@ export function QrRoomAgentClient({ property }: QrRoomAgentClientProps) {
   }
 
   async function submitLead() {
-    if (!answer?.needsAgentFollowup || !leadName.trim() || !leadEmail.trim()) return;
+    if (!answer || !leadName.trim() || !leadEmail.trim()) return;
     setLoading(true);
     try {
       const response = await fetch(`/api/public/properties/${property.slug}/ask`, {
@@ -176,6 +178,7 @@ export function QrRoomAgentClient({ property }: QrRoomAgentClientProps) {
           buyerName: leadName,
           buyerEmail: leadEmail,
           buyerPhone: leadPhone || null,
+          requestedFeatureSheet: requestingFeatureSheet,
         }),
       });
       if (!response.ok) throw new Error("Lead capture failed");
@@ -183,6 +186,14 @@ export function QrRoomAgentClient({ property }: QrRoomAgentClientProps) {
     } finally {
       setLoading(false);
     }
+  }
+
+  function speak(text: string) {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1;
+    window.speechSynthesis.speak(utterance);
   }
 
   return (
@@ -266,6 +277,24 @@ export function QrRoomAgentClient({ property }: QrRoomAgentClientProps) {
               <Alert variant={answer.needsAgentFollowup ? "warning" : "success"} title="Answer">
                 <p>{loading ? "One moment..." : answer.answer}</p>
               </Alert>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => speak(answer.answer)}>
+                  <Volume2 className="size-4" aria-hidden />
+                  Hear answer
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setRequestingFeatureSheet(true);
+                    setLeadSaved(false);
+                  }}
+                >
+                  <FileText className="size-4" aria-hidden />
+                  Request feature sheet
+                </Button>
+              </div>
               {answer.answeredFromSources.length > 0 && (
                 <div className="space-y-2 text-xs text-muted-foreground">
                   {answer.answeredFromSources.map((source) => (
@@ -275,18 +304,26 @@ export function QrRoomAgentClient({ property }: QrRoomAgentClientProps) {
                   ))}
                 </div>
               )}
-              {answer.needsAgentFollowup && (
+              {(answer.needsAgentFollowup || requestingFeatureSheet) && (
                 <div className="space-y-3 rounded-lg border border-border bg-secondary/30 p-3">
-                  <p className="text-sm font-medium">Send this to the listing agent</p>
+                  <p className="text-sm font-medium">
+                    {requestingFeatureSheet ? "Send me the feature sheet" : "Send this to the listing agent"}
+                  </p>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <Input value={leadName} onChange={(event) => setLeadName(event.target.value)} placeholder="Name" />
                     <Input value={leadEmail} onChange={(event) => setLeadEmail(event.target.value)} placeholder="Email" type="email" />
                   </div>
                   <Input value={leadPhone} onChange={(event) => setLeadPhone(event.target.value)} placeholder="Phone optional" />
                   <Button type="button" onClick={submitLead} disabled={loading || !leadName.trim() || !leadEmail.trim()}>
-                    Send to Agent
+                    {requestingFeatureSheet ? "Request Feature Sheet" : "Send to Agent"}
                   </Button>
-                  {leadSaved && <p className="text-sm text-muted-foreground">Sent to the listing agent.</p>}
+                  {leadSaved && (
+                    <p className="text-sm text-muted-foreground">
+                      {requestingFeatureSheet
+                        ? "Your request was sent to the listing agent."
+                        : "Sent to the listing agent."}
+                    </p>
+                  )}
                 </div>
               )}
             </div>

@@ -78,6 +78,7 @@ export interface AttachLeadToQuestionInput {
   buyerName: string;
   buyerEmail: string;
   buyerPhone?: string | null;
+  requestedFeatureSheet?: boolean;
 }
 
 export async function getPublicPropertyBySlugOrId(
@@ -238,7 +239,10 @@ export async function attachLeadToQuestion(
       buyerPhone: input.buyerPhone ?? null,
     },
     input.questionId,
-    { needsAgentFollowup: true },
+    {
+      needsAgentFollowup: true,
+      requestedFeatureSheet: input.requestedFeatureSheet ?? false,
+    },
   );
 
   return { saved: true };
@@ -348,7 +352,11 @@ async function createLeadFromQuestion(
   property: Property,
   input: AskRoomQuestionInput,
   questionId: string | null,
-  extras: { answer?: string; needsAgentFollowup?: boolean } = {},
+  extras: {
+    answer?: string;
+    needsAgentFollowup?: boolean;
+    requestedFeatureSheet?: boolean;
+  } = {},
 ) {
   const { data: lead } = await client
     .from("leads")
@@ -358,7 +366,7 @@ async function createLeadFromQuestion(
       email: input.buyerEmail ?? null,
       phone: input.buyerPhone ?? null,
       consent_given: true,
-      requested_pdf: false,
+      requested_pdf: extras.requestedFeatureSheet ?? false,
       requested_showing: false,
       notes: [`Room: ${input.selectedRoom}`, `Question: ${input.question}`, questionId ? `Question ID: ${questionId}` : null]
         .filter(Boolean)
@@ -386,6 +394,7 @@ async function createLeadFromQuestion(
         question: input.question,
         answer: extras.answer ?? "",
         needsAgentFollowup: extras.needsAgentFollowup ?? true,
+        requestedFeatureSheet: extras.requestedFeatureSheet ?? false,
         buyerName: input.buyerName ?? null,
         buyerEmail: input.buyerEmail ?? null,
         buyerPhone: input.buyerPhone ?? null,

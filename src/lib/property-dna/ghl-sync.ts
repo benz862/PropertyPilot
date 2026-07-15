@@ -12,6 +12,7 @@ export interface BuyerLeadSyncInput {
   question: string;
   answer: string;
   needsAgentFollowup: boolean;
+  requestedFeatureSheet: boolean;
   buyerName: string | null;
   buyerEmail: string | null;
   buyerPhone: string | null;
@@ -64,7 +65,7 @@ export class GHLSyncService {
         buyerIntentScore: null,
         buyerInterests: [input.selectedRoom].filter(Boolean),
         buyerConcerns: [],
-        brochureRequested: false,
+        brochureRequested: input.requestedFeatureSheet,
         showingRequested: false,
         aiConversationSummary: null,
       };
@@ -104,12 +105,15 @@ export function createGHLSyncService(client: Client, ghl?: GhlService): GHLSyncS
   return new GHLSyncService(client, ghl);
 }
 
-export function buildBuyerTags(input: Pick<BuyerLeadSyncInput, "propertyAddress" | "selectedRoom">): string[] {
+export function buildBuyerTags(
+  input: Pick<BuyerLeadSyncInput, "propertyAddress" | "selectedRoom" | "requestedFeatureSheet">,
+): string[] {
   return [
     "PropertyPilot",
     "QR Tour",
     `Property: ${input.propertyAddress}`,
     `Room: ${input.selectedRoom}`,
+    ...(input.requestedFeatureSheet ? ["Feature Sheet Requested"] : []),
   ];
 }
 
@@ -122,6 +126,7 @@ function buildNote(input: BuyerLeadSyncInput): string {
     `Question: ${input.question}`,
     `AI Answer: ${input.answer}`,
     `Needs follow-up: ${input.needsAgentFollowup ? "true" : "false"}`,
+    `Feature sheet requested: ${input.requestedFeatureSheet ? "true" : "false"}`,
   ].join("\n");
 }
 

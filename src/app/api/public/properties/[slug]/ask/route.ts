@@ -18,6 +18,7 @@ interface AskRequestBody {
   buyerEmail?: string | null;
   buyerPhone?: string | null;
   questionId?: string | null;
+  requestedFeatureSheet?: boolean;
 }
 
 export async function POST(request: Request, { params }: RouteParams) {
@@ -34,6 +35,7 @@ export async function POST(request: Request, { params }: RouteParams) {
         buyerName: body.buyerName.trim(),
         buyerEmail: body.buyerEmail.trim(),
         buyerPhone: body.buyerPhone?.trim() || null,
+        requestedFeatureSheet: body.requestedFeatureSheet ?? false,
       });
       return NextResponse.json({ data: result, error: null });
     }
