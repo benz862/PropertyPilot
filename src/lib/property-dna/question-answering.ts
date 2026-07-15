@@ -164,14 +164,21 @@ function addFactChunks(chunks: Chunk[], facts: Fact[]) {
 
 function rankChunks(chunks: Chunk[], question: string, selectedRoom: string) {
   const isWholeProperty = selectedRoom.trim().toLowerCase() === "whole property";
-  const terms = tokenize(`${question} ${isWholeProperty ? "" : selectedRoom}`);
+  const terms = tokenize(question);
 
   return chunks
     .map((chunk) => {
       const text = chunk.text.toLowerCase();
+      const termScore = terms.reduce((sum, term) => sum + (text.includes(term) ? 1 : 0), 0);
+      // Boost the selected room only when it already matches the question terms.
       const roomBoost =
-        chunk.roomName && !isWholeProperty && chunk.roomName.toLowerCase() === selectedRoom.toLowerCase() ? 3 : 0;
-      const score = terms.reduce((sum, term) => sum + (text.includes(term) ? 1 : 0), 0) + roomBoost;
+        termScore > 0 &&
+        chunk.roomName &&
+        !isWholeProperty &&
+        chunk.roomName.toLowerCase() === selectedRoom.toLowerCase()
+          ? 2
+          : 0;
+      const score = termScore + roomBoost;
       return { chunk, score };
     })
     .filter((item) => item.score > 0)

@@ -193,12 +193,16 @@ export class GhlService {
   ): Promise<Json> {
     this.requireConfiguration();
 
+    const dueDate =
+      task.dueDate ??
+      new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
     return this.request<Json>(`/contacts/${contactId}/tasks`, {
       method: "POST",
       body: compactObject({
         title: task.title,
         body: task.body,
-        dueDate: task.dueDate,
+        dueDate,
         completed: false,
       }),
     });

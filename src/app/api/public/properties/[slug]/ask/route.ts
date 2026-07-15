@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { askRoomQuestion, attachLeadToQuestion } from "@/lib/public-room-agent/service";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
@@ -27,7 +27,8 @@ export async function POST(request: Request, { params }: RouteParams) {
     const body = (await request.json()) as AskRequestBody;
     const selectedRoom = body.selectedRoom?.trim() || "Whole Property";
     const question = body.question?.trim();
-    const client = await createClient();
+    // Service role: public Q&A must write buyer_questions/leads and return IDs under RLS.
+    const client = createServiceClient();
 
     if (body.questionId && body.buyerName?.trim() && body.buyerEmail?.trim()) {
       const result = await attachLeadToQuestion(client, slug, {
