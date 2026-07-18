@@ -493,6 +493,28 @@ export interface Photo {
   updated_at: string;
 }
 
+export type StagedPhotoStatus = "pending" | "processing" | "succeeded" | "failed";
+
+export interface StagedPhoto {
+  id: string;
+  property_id: string;
+  source_photo_id: string;
+  style: string;
+  status: StagedPhotoStatus;
+  provider: string;
+  provider_request_id: string | null;
+  result_storage_bucket: string;
+  result_storage_path: string | null;
+  result_photo_id: string | null;
+  error_message: string | null;
+  created_by: string | null;
+  updated_by?: string | null;
+  deleted_at?: string | null;
+  version?: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface PointOfInterest {
   id: string;
   property_id: string;
@@ -738,6 +760,7 @@ export interface Database {
       appliances: TableDef<Appliance>;
       documents: TableDef<Document>;
       photos: TableDef<Photo>;
+      staged_photos: TableDef<StagedPhoto>;
       points_of_interest: TableDef<PointOfInterest>;
       voice_personalities: TableDef<VoicePersonality>;
       ai_policies: TableDef<AiPolicy>;

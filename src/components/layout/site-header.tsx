@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -6,14 +7,16 @@ import { siteConfig } from "@/lib/config/site";
 export function SiteHeader() {
   return (
     <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-        <Link href="/" className="flex items-center gap-2">
-          <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
-            PP
-          </span>
-          <span className="text-lg font-semibold tracking-normal">
-            {siteConfig.name}
-          </span>
+      <div className="mx-auto flex h-36 max-w-6xl items-center justify-between px-4 sm:px-6">
+        <Link href="/" aria-label={siteConfig.name}>
+          <Image
+            src="/pp-logo.png"
+            alt={siteConfig.name}
+            width={131}
+            height={120}
+            priority
+            className="h-30 w-auto"
+          />
         </Link>
 
         <nav className="hidden items-center gap-8 text-sm font-medium text-muted-foreground md:flex">
