@@ -30,11 +30,11 @@ export function generatePropertyAssets(input: AssetInput): GeneratedAssets {
   const remarks = input.publicRemarks ?? input.profile.publicRemarks ?? "";
   const marketingDescription = remarks
     ? remarks
-    : `Discover ${input.profile.street} — a thoughtfully maintained home in ${input.profile.city}.`;
+    : propertySummary || `${input.profile.street}, ${input.profile.city}`;
 
-  const luxuryDescription = `Experience ${input.profile.street}, where quality finishes and comfortable living come together in ${input.profile.city}.`;
+  const luxuryDescription = remarks || marketingDescription;
 
-  const socialMediaSummary = `🏠 ${address}${sqft ? ` · ${sqft.toLocaleString()} sq ft` : ""} — explore this home with PropertyPilot.`;
+  const socialMediaSummary = `${address}${sqft ? ` · ${sqft.toLocaleString()} sq ft` : ""}`;
 
   const featureSheet = [
     ...input.features.slice(0, 8),
@@ -52,8 +52,7 @@ export function generatePropertyAssets(input: AssetInput): GeneratedAssets {
 
   const showingNotes = [
     ...getMissingCoverageSuggestions(input.photoCoverage.missingRooms).slice(0, 3),
-    "Review AI suggestions before publishing.",
-    "Confirm verified facts for systems and appliances.",
+    "Confirm source-attributed facts before publishing.",
   ];
 
   return {

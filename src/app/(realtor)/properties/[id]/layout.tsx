@@ -6,26 +6,12 @@ import { PropertyHealthBadge } from "@/components/property/property-health-badge
 import { Badge } from "@/components/ui/badge";
 import { env } from "@/lib/env";
 import { calculatePropertyHealth } from "@/lib/property-health/score";
+import { createPropertyDNAService, generateRecommendations } from "@/lib/property-dna";
 import { loadPropertyTwinContext } from "@/lib/repositories/property-repository";
 import { getPropertyVoiceNotes } from "@/lib/repositories/workspace-repository";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
-
-const HEALTH_LABELS: Record<string, string> = {
-  knowledgeCompleteness: "Knowledge Completeness",
-  knowledgeVerification: "Knowledge Verification",
-  assetCoverage: "Asset Coverage",
-  photography: "Photography",
-  voiceDocumentation: "Voice Documentation",
-  maintenanceHistory: "Maintenance History",
-  timelineCompleteness: "Timeline Completeness",
-  buyerQuestionsAnswered: "Buyer Questions Answered",
-  marketingReadiness: "Marketing Readiness",
-  accessibility: "Accessibility",
-  documentCoverage: "Document Coverage",
-  knowledgeFreshness: "Knowledge Freshness",
-};
 
 interface PropertyLayoutProps {
   children: React.ReactNode;
@@ -37,7 +23,7 @@ export default async function PropertyLayout({ children, params }: PropertyLayou
 
   let address = "Property";
   let health = null;
-  const suggestions: string[] = [];
+  let suggestions: string[] = [];
   let missingItems: string[] = [];
   let recommendedNextAction: string | null = null;
   let publishingChecklist: Array<{ label: string; done: boolean }> = [];
@@ -51,27 +37,15 @@ export default async function PropertyLayout({ children, params }: PropertyLayou
     address = `${context.property.street}, ${context.property.city}`;
     const voiceNotes = await getPropertyVoiceNotes(client, id);
     health = calculatePropertyHealth(context, voiceNotes.length);
-    missingItems = health.total < 90
-      ? Object.entries(health.breakdown)
-          .filter(([, value]) => value < 50)
-          .map(([key]) => `Improve ${HEALTH_LABELS[key] ?? key}`)
-      : [];
-    if (context.pointsOfInterest.length === 0) {
-      suggestions.push("Add points of interest to guide buyers through the tour.");
-    }
-    if (!context.voicePersonality) {
-      suggestions.push("Configure voice personality for a warmer buyer experience.");
-    }
-    if (context.photos.some((p) => p.detected_room?.toLowerCase().includes("garage"))) {
-      // garage photos exist
-    } else {
-      suggestions.push("Your garage has no voice introduction.");
-    }
-    if (!context.knowledgeObjects.some((ko) => ko.category === "neighborhood")) {
-      suggestions.push("No neighborhood information detected.");
-    }
 
-    recommendedNextAction = suggestions[0] ?? (health.total < 90 ? "Complete missing sections to improve health score." : null);
+    const dna = await createPropertyDNAService(client).getPropertyDNA(id);
+    const recommendations = dna ? generateRecommendations(dna) : [];
+    suggestions = recommendations.slice(0, 5).map((item) => item.detail);
+    missingItems = recommendations
+      .filter((item) => item.priority === "critical" || item.priority === "important")
+      .slice(0, 6)
+      .map((item) => item.title);
+    recommendedNextAction = recommendations[0]?.title ?? (health.total < 90 ? "Complete missing sections to improve health score." : null);
 
     publishingChecklist = [
       { label: "Knowledge completeness 80%+", done: health.breakdown.knowledgeCompleteness >= 80 },

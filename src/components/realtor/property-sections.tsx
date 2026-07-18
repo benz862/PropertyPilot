@@ -1,6 +1,11 @@
-import Image from "next/image";
+"use client";
 
+import Image from "next/image";
+import { useState } from "react";
+
+import { PhotoStagingDialog } from "@/components/realtor/photo-staging-dialog";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   KNOWLEDGE_CATEGORY_GROUPS,
@@ -123,7 +128,7 @@ export function PhotosSection({ context }: PhotosSectionProps) {
       <div>
         <h2 className="text-2xl font-bold">Photo Center</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          {photos.length} photos · drag-and-drop upload and AI analysis
+          {photos.length} photos · drag-and-drop upload, AI analysis, and virtual staging
         </p>
       </div>
 
@@ -132,7 +137,7 @@ export function PhotosSection({ context }: PhotosSectionProps) {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {photos.map((photo) => (
-            <PhotoCard key={photo.id} photo={photo} />
+            <PhotoCard key={photo.id} propertyId={context.property.id} photo={photo} />
           ))}
         </div>
       )}
@@ -140,33 +145,59 @@ export function PhotosSection({ context }: PhotosSectionProps) {
   );
 }
 
-function PhotoCard({ photo }: { photo: Photo }) {
+function PhotoCard({ propertyId, photo }: { propertyId: string; photo: Photo }) {
   const url = getPhotoPublicUrl(photo);
+  const [stagingOpen, setStagingOpen] = useState(false);
+  const isVirtuallyStaged = photo.tags?.includes("virtually-staged");
 
   return (
-    <Card className="overflow-hidden">
-      <div className="relative aspect-[4/3] bg-secondary">
-        {url ? (
-          <Image src={url} alt={photo.caption ?? "Property photo"} fill className="object-cover" />
-        ) : (
-          <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
-            No preview
-          </div>
-        )}
-        {photo.is_duplicate && (
-          <Badge className="absolute right-2 top-2" variant="destructive">
-            Duplicate
-          </Badge>
-        )}
-      </div>
-      <CardContent className="p-3">
-        <p className="truncate text-sm font-medium">{photo.caption ?? photo.detected_room ?? "Photo"}</p>
-        <p className="mt-1 text-xs text-muted-foreground capitalize">
-          {photo.analysis_status ?? "pending"} analysis
-          {photo.detected_room ? ` · ${photo.detected_room}` : ""}
-        </p>
-      </CardContent>
-    </Card>
+    <>
+      <Card className="overflow-hidden">
+        <div className="relative aspect-[4/3] bg-secondary">
+          {url ? (
+            <Image src={url} alt={photo.caption ?? "Property photo"} fill className="object-cover" />
+          ) : (
+            <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
+              No preview
+            </div>
+          )}
+          {photo.is_duplicate && (
+            <Badge className="absolute right-2 top-2" variant="destructive">
+              Duplicate
+            </Badge>
+          )}
+          {isVirtuallyStaged && (
+            <Badge className="absolute left-2 top-2" variant="secondary">
+              Virtually staged
+            </Badge>
+          )}
+        </div>
+        <CardContent className="space-y-2 p-3">
+          <p className="truncate text-sm font-medium">{photo.caption ?? photo.detected_room ?? "Photo"}</p>
+          <p className="text-xs text-muted-foreground capitalize">
+            {photo.analysis_status ?? "pending"} analysis
+            {photo.detected_room ? ` · ${photo.detected_room}` : ""}
+          </p>
+          {!isVirtuallyStaged ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="w-full"
+              onClick={() => setStagingOpen(true)}
+            >
+              Stage
+            </Button>
+          ) : null}
+        </CardContent>
+      </Card>
+      <PhotoStagingDialog
+        open={stagingOpen}
+        onOpenChange={setStagingOpen}
+        propertyId={propertyId}
+        photo={photo}
+      />
+    </>
   );
 }
 

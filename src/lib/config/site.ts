@@ -2,7 +2,7 @@ export const siteConfig = {
   name: "PropertyPilot",
   tagline: "AI-powered property tours",
   description:
-    "Scan one QR code and speak naturally with an intelligent voice assistant that understands every aspect of the property.",
+    "Give every listing an always-ready guide—so buyers can explore with confidence and agents receive the context to follow up brilliantly.",
   url: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
   links: {
     login: "/login",

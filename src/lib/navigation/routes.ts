@@ -1,5 +1,6 @@
 export const realtorRoutes = {
   dashboard: "/dashboard",
+  v2: "/v2",
   properties: "/properties",
   newProperty: "/properties/new",
   property: (id: string) => `/properties/${id}`,
@@ -21,22 +22,27 @@ export const realtorRoutes = {
 
 export type PropertyEditorSection =
   | "overview"
+  | "property-dna"
+  | "rooms"
   | "property-twin"
   | "knowledge"
   | "photos"
   | "voice-notes"
   | "documents"
   | "buyer-questions"
+  | "buyer-activity"
   | "analytics"
   | "generated-assets"
   | "publishing"
   | "settings";
 
-/** Legacy section slugs redirect to PRD-008 tabs */
+/** Legacy section slugs redirect to current tabs */
 export const legacySectionRedirects: Record<string, PropertyEditorSection> = {
   pois: "property-twin",
   suggestions: "overview",
   leads: "buyer-questions",
+  "property-studio": "generated-assets",
+  "qr-tour": "publishing",
 };
 
 export const propertyEditorSections: Array<{
@@ -45,15 +51,18 @@ export const propertyEditorSections: Array<{
   description: string;
 }> = [
   { slug: "overview", label: "Overview", description: "Property health and status" },
+  { slug: "property-dna", label: "Property DNA", description: "The single source of truth" },
+  { slug: "rooms", label: "Rooms", description: "Room-specific buyer knowledge" },
+  { slug: "generated-assets", label: "Property Studio", description: "Assets generated from Property DNA" },
+  { slug: "publishing", label: "QR Tour", description: "Public page, QR codes, go-live" },
+  { slug: "buyer-activity", label: "Buyer Activity", description: "Scans, questions, and leads" },
+  { slug: "documents", label: "Documents", description: "Inspection reports and files" },
+  { slug: "voice-notes", label: "Voice Notes", description: "Agent-recorded notes" },
+  { slug: "photos", label: "Photos", description: "Property imagery" },
   { slug: "property-twin", label: "Property Twin", description: "Knowledge graph and systems" },
   { slug: "knowledge", label: "Knowledge", description: "Facts and knowledge objects" },
-  { slug: "photos", label: "Photos", description: "Property imagery" },
-  { slug: "voice-notes", label: "Voice Notes", description: "Agent-recorded notes" },
-  { slug: "documents", label: "Documents", description: "Inspection reports and files" },
-  { slug: "buyer-questions", label: "Buyer Questions", description: "Questions from tours" },
   { slug: "analytics", label: "Analytics", description: "Tour and engagement data" },
-  { slug: "generated-assets", label: "Generated Assets", description: "AI marketing materials" },
-  { slug: "publishing", label: "Publishing", description: "QR codes and go-live" },
+  { slug: "buyer-questions", label: "Buyer Questions", description: "Questions from tours" },
   { slug: "settings", label: "Settings", description: "Voice, branding, and rules" },
 ];
 
@@ -71,6 +80,7 @@ export type WizardStepId =
   | "mls"
   | "photos"
   | "documents"
+  | "room-knowledge"
   | "voice-notes"
   | "ai-build"
   | "review"
@@ -85,6 +95,7 @@ export const wizardSteps: Array<{
   { id: "mls", label: "Upload MLS", description: "Import listing data" },
   { id: "photos", label: "Photos", description: "Upload property photos" },
   { id: "documents", label: "Documents", description: "Inspection reports and files" },
+  { id: "room-knowledge", label: "Room Knowledge", description: "Room-specific buyer answers" },
   { id: "voice-notes", label: "Voice Notes", description: "Record agent knowledge" },
   { id: "ai-build", label: "AI Build", description: "Generate property twin" },
   { id: "review", label: "Review", description: "Review AI suggestions" },

@@ -3,9 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Activity,
   BarChart3,
   BookOpen,
   Camera,
+  Dna,
+  DoorOpen,
   FileText,
   HelpCircle,
   LayoutGrid,
@@ -25,12 +28,15 @@ import { cn } from "@/lib/utils";
 
 const sectionIcons: Record<PropertyEditorSection, typeof LayoutGrid> = {
   overview: LayoutGrid,
+  "property-dna": Dna,
+  rooms: DoorOpen,
   "property-twin": Map,
   knowledge: BookOpen,
   photos: Camera,
   documents: FileText,
   "voice-notes": Mic,
   "buyer-questions": HelpCircle,
+  "buyer-activity": Activity,
   analytics: BarChart3,
   "generated-assets": Sparkles,
   publishing: Upload,

@@ -28,7 +28,8 @@ export type KnowledgeCategory =
   | "legal_documents"
   | "hoa"
   | "insurance"
-  | "miscellaneous";
+  | "miscellaneous"
+  | "other";
 
 export type PropertyListingStatus =
   | "draft"

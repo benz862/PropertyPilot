@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -18,6 +19,7 @@ import {
   Settings,
   Sparkles,
   Users,
+  WandSparkles,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -27,6 +29,7 @@ import { siteConfig } from "@/lib/config/site";
 
 const navItems = [
   { href: realtorRoutes.dashboard, label: "Dashboard", icon: LayoutDashboard },
+  { href: realtorRoutes.v2, label: "PropertyPilot V2", icon: WandSparkles },
   { href: realtorRoutes.properties, label: "Properties", icon: Building2 },
   { href: realtorRoutes.leads, label: "Leads", icon: Users },
   { href: realtorRoutes.appointments, label: "Appointments", icon: Calendar },
@@ -35,7 +38,7 @@ const navItems = [
   { href: realtorRoutes.documents, label: "Documents", icon: FileText },
   { href: realtorRoutes.knowledgeCenter, label: "Knowledge Center", icon: BookOpen },
   { href: realtorRoutes.voiceNotes, label: "Voice Notes", icon: Mic },
-  { href: realtorRoutes.generatedAssets, label: "Generated Assets", icon: Sparkles },
+  { href: realtorRoutes.generatedAssets, label: "Property Studio", icon: Sparkles },
   { href: realtorRoutes.billing, label: "Billing", icon: CreditCard },
   { href: realtorRoutes.integrations, label: "Integrations", icon: Link2 },
   { href: realtorRoutes.settings, label: "Settings", icon: Settings },
@@ -54,12 +57,16 @@ export function RealtorSidebar({ className, onNavigate }: RealtorSidebarProps) {
     <aside
       className={cn("flex w-64 shrink-0 flex-col border-r border-border bg-sidebar", className)}
     >
-      <div className="flex h-16 items-center gap-2 border-b border-sidebar-border px-4">
-        <Link href="/" className="flex items-center gap-2" onClick={onNavigate}>
-          <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
-            PP
-          </span>
-          <span className="font-semibold text-sidebar-foreground">{siteConfig.name}</span>
+      <div className="flex h-36 items-center border-b border-sidebar-border px-4">
+        <Link href="/" onClick={onNavigate} aria-label={siteConfig.name}>
+          <Image
+            src="/pp-logo.png"
+            alt={siteConfig.name}
+            width={131}
+            height={120}
+            priority
+            className="h-30 w-auto"
+          />
         </Link>
       </div>
 

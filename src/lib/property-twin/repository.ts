@@ -13,12 +13,14 @@ import {
 import type {
   CreateKnowledgeFactInput,
   CreateKnowledgeObjectInput,
+  KnowledgeCategory,
   CreatePropertyInput,
   CreateRelationshipInput,
   PropertyProfile,
   TwinAuditAction,
   UpdatePropertyProfileInput,
 } from "@/lib/property-twin/types";
+import type { PropertyIntelligence } from "@/lib/property-intelligence";
 
 export type TwinSupabaseClient = SupabaseClient<Database>;
 
@@ -136,7 +138,7 @@ export class PropertyTwinRepository {
       .from("knowledge_objects")
       .insert({
         property_id: input.propertyId,
-        category: input.category,
+        category: toStoredKnowledgeCategory(input.category),
         name: input.name,
         summary: input.summary ?? null,
         confidence_level: verificationToConfidence(input.confidenceLevel ?? "unknown"),
@@ -341,7 +343,7 @@ export class PropertyTwinRepository {
   async listPhotos(propertyId: string) {
     const { data, error } = await this.client
       .from("photos")
-      .select("id, caption, detected_room, storage_path, tags, display_order")
+      .select("id, caption, detected_room, storage_bucket, storage_path, tags, display_order")
       .eq("property_id", propertyId)
       .order("display_order");
 
@@ -354,6 +356,7 @@ export class PropertyTwinRepository {
       caption: photo.caption,
       is_primary: photo.display_order === 0,
       detected_room: photo.detected_room ?? null,
+      storage_bucket: photo.storage_bucket,
       storage_path: photo.storage_path,
       tags: photo.tags,
     }));
@@ -628,12 +631,14 @@ export class PropertyTwinRepository {
     documentId: string,
     extractedData: Record<string, unknown>,
     requiresReview: boolean,
+    searchableContent?: string | null,
   ) {
     const { data, error } = await this.client
       .from("documents")
       .update({
         extracted_data: extractedData,
         requires_review: requiresReview,
+        searchable_content: searchableContent ?? undefined,
       })
       .eq("id", documentId)
       .select("*")
@@ -675,6 +680,32 @@ export class PropertyTwinRepository {
 
     if (error || !data) {
       throw new Error(error?.message ?? "Failed to store voice note intelligence");
+    }
+
+    return data;
+  }
+
+  async storePropertyIntelligence(
+    propertyId: string,
+    intelligence: PropertyIntelligence,
+  ) {
+    const { data, error } = await this.client
+      .from("property_intelligence")
+      .upsert(
+        {
+          property_id: propertyId,
+          intelligence: intelligence as unknown as Record<string, unknown>,
+          source_map: intelligence.sourceMap as unknown as Record<string, unknown>[],
+          missing_information: intelligence.missingInformation,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "property_id" },
+      )
+      .select("*")
+      .single();
+
+    if (error || !data) {
+      throw new Error(error?.message ?? "Failed to store property intelligence");
     }
 
     return data;
@@ -761,6 +792,56 @@ export class PropertyTwinRepository {
 
     return Boolean(data);
   }
+}
+
+type StoredKnowledgeCategory = Database["public"]["Enums"]["knowledge_category"];
+
+/**
+ * The intelligence layer uses broader semantic categories than the original
+ * Postgres enum. Keep persistence compatible until the enum is expanded.
+ */
+export function toStoredKnowledgeCategory(
+  category: KnowledgeCategory | StoredKnowledgeCategory,
+): StoredKnowledgeCategory {
+  const aliases: Partial<Record<KnowledgeCategory, StoredKnowledgeCategory>> = {
+    structural: "foundation",
+    mechanical: "hvac",
+    plumbing: "utilities",
+    landscape: "landscaping",
+    appliances: "appliance",
+  };
+
+  const supported: StoredKnowledgeCategory[] = [
+    "roof",
+    "hvac",
+    "kitchen",
+    "bathroom",
+    "pool",
+    "electrical",
+    "foundation",
+    "garage",
+    "flex_space",
+    "windows",
+    "driveway",
+    "landscaping",
+    "deck",
+    "fireplace",
+    "solar",
+    "appliance",
+    "well",
+    "septic",
+    "security",
+    "neighborhood",
+    "schools",
+    "utilities",
+    "other",
+  ];
+
+  if (supported.includes(category as StoredKnowledgeCategory)) {
+    return category as StoredKnowledgeCategory;
+  }
+
+  return aliases[category as KnowledgeCategory] ?? "other";
 }
 
 function verificationToConfidence(

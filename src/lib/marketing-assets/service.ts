@@ -73,13 +73,14 @@ export class MarketingAssetService {
 
     for (const assetType of types) {
       const template = getTemplate(assetType, theme);
+      const body = buildAssetBody(assetType, snapshot.profile.street, copy, qrUrl);
       const html = buildAssetHtml({
-        title: `${assetType.replace(/_/g, " ")} — ${snapshot.profile.street}`,
+        title: `${template.assetType.replace(/_/g, " ")} — ${snapshot.profile.street}`,
         address: `${snapshot.profile.street}, ${snapshot.profile.city}`,
         agentName: snapshot.profile.agentName ?? "Listing Agent",
         brokerage: snapshot.profile.brokerage,
-        summary: copy.professionalDescription,
-        features: copy.propertyHighlights,
+        summary: body.summary,
+        features: body.features,
         qrUrl,
         theme: colors,
       });
@@ -88,7 +89,7 @@ export class MarketingAssetService {
         id: crypto.randomUUID(),
         propertyId: input.propertyId,
         assetType,
-        title: `${assetType.replace(/_/g, " ")} — ${snapshot.profile.street}`,
+        title: `${template.assetType.replace(/_/g, " ")} — ${snapshot.profile.street}`,
         theme,
         format: assetType === "brochure" ? "html" : "pdf",
         status: "current",
@@ -102,6 +103,7 @@ export class MarketingAssetService {
         regenerationReason: null,
         metadata: {
           htmlLength: html.length,
+          sections: template.sections,
           qrToken: token.token,
           brochureVersion:
             assetType === "brochure"
@@ -188,6 +190,69 @@ export class MarketingAssetService {
 
   getJob(jobId: string): AssetGenerationJob | null {
     return jobStore.get(jobId) ?? null;
+  }
+}
+
+function buildAssetBody(
+  assetType: AssetType,
+  street: string,
+  copy: ReturnType<typeof generateCopywriting>,
+  qrUrl: string,
+): {
+  summary: string;
+  features: string[];
+} {
+  switch (assetType) {
+    case "qr_sign":
+      return {
+        summary: `Scan to tour ${street}. Ask questions about rooms, systems, and nearby amenities.`,
+        features: [`Live buyer guide: ${qrUrl}`, "Voice-enabled property Q&A", "Instant room-by-room context"],
+      };
+    case "open_house_sign":
+      return {
+        summary: copy.mlsSummary || `Open house at ${street}.`,
+        features: [
+          "Open house details and timing",
+          "Scan for the digital tour",
+          "Ask questions while you walk the property",
+        ],
+      };
+    case "welcome_sign":
+      return {
+        summary: copy.mlsSummary || `Welcome to ${street}.`,
+        features: copy.roomIntroductions.slice(0, 4).map((item) => `${item.room}: ${item.introduction}`),
+      };
+    case "summary_pdf":
+      return {
+        summary: copy.mlsSummary,
+        features: copy.propertyHighlights.slice(0, 8),
+      };
+    case "feature_sheet":
+      return {
+        summary: copy.professionalDescription,
+        features: copy.propertyHighlights.slice(0, 10),
+      };
+    case "luxury_brochure":
+    case "brochure":
+      return {
+        summary: copy.luxuryDescription,
+        features: [...copy.propertyHighlights.slice(0, 6), copy.neighborhoodSummary],
+      };
+    case "room_highlight":
+      return {
+        summary: copy.roomIntroductions[0]?.introduction ?? copy.professionalDescription,
+        features: copy.roomIntroductions.slice(0, 4).map((item) => `${item.room}: ${item.introduction}`),
+      };
+    case "info_sheet":
+      return {
+        summary: copy.neighborhoodSummary,
+        features: [copy.mlsSummary, ...copy.propertyHighlights.slice(0, 4)],
+      };
+    default:
+      return {
+        summary: copy.professionalDescription,
+        features: copy.propertyHighlights,
+      };
   }
 }
 

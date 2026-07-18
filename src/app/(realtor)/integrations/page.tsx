@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { RealtorLayoutShell } from "@/components/layout/realtor-layout-shell";
+import { GhlSetupBuilder } from "@/components/crm/ghl-setup-builder";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -91,6 +92,17 @@ export default function IntegrationsPage() {
           </Card>
         ))}
       </div>
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>GoHighLevel listing setup builder</CardTitle>
+          <CardDescription>
+            Answer the brokerage and listing questions once, then copy or download the populated setup document for GoHighLevel Ask AI.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <GhlSetupBuilder />
+        </CardContent>
+      </Card>
     </RealtorLayoutShell>
   );
 }

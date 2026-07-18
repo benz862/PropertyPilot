@@ -178,6 +178,36 @@ export class GhlService {
     });
   }
 
+  async addContactNoteText(contactId: string, body: string): Promise<Json> {
+    this.requireConfiguration();
+
+    return this.request<Json>(`/contacts/${contactId}/notes`, {
+      method: "POST",
+      body: { body },
+    });
+  }
+
+  async createContactTask(
+    contactId: string,
+    task: { title: string; body?: string; dueDate?: string },
+  ): Promise<Json> {
+    this.requireConfiguration();
+
+    const dueDate =
+      task.dueDate ??
+      new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+    return this.request<Json>(`/contacts/${contactId}/tasks`, {
+      method: "POST",
+      body: compactObject({
+        title: task.title,
+        body: task.body,
+        dueDate,
+        completed: false,
+      }),
+    });
+  }
+
   async syncLeadToGHL(lead: GhlLeadPayload): Promise<GhlSyncResult> {
     const tags = buildTags(lead);
     const connection = await this.ensureConnection();

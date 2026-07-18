@@ -11,6 +11,7 @@ import {
   getMissingCoverageSuggestions,
 } from "@/lib/property-builder/photo-coverage";
 import { calculatePropertyQuality } from "@/lib/property-builder/quality-score";
+import { buildPropertyIntelligence } from "@/lib/property-intelligence";
 import type {
   BuildPropertyTwinResult,
   MlsExtractionResult,
@@ -167,6 +168,7 @@ export class PropertyBuilderService {
       const result = await extractPhotoIntelligence(this.twin.intelligence, {
         photoId: photo.id,
         storagePath: photo.storage_path,
+        storageBucket: photo.storage_bucket,
         existingCaptions: fullPhotos
           .filter((item) => item.id !== photo.id)
           .map((item) => item.caption)
@@ -199,6 +201,8 @@ export class PropertyBuilderService {
         title: document.title,
         documentType: document.document_type,
         storagePath: document.storage_path,
+        storageBucket: document.storage_bucket,
+        mimeType: document.mime_type,
       });
       documentResults.push(result);
     }
@@ -232,6 +236,28 @@ export class PropertyBuilderService {
 
     const suggestions = await this.twin.refreshMissingKnowledge(propertyId);
     const health = await this.getPropertyHealth(propertyId);
+    const refreshedSnapshot = await this.twin.getTwinSnapshot(propertyId);
+    const intelligenceProfile = refreshedSnapshot?.profile ?? snapshot.profile;
+    const propertyIntelligence = buildPropertyIntelligence({
+      profile: intelligenceProfile,
+      mls: mlsResult,
+      photos: photoResults.map((result) => ({
+        id: result.photoId,
+        storagePath: result.storagePath,
+        result,
+      })),
+      documents: documentResults.map((result) => ({
+        id: result.documentId,
+        title: result.title,
+        storagePath: result.storagePath,
+        result,
+      })),
+      voiceNotes: voiceResults.map((result, index) => ({
+        transcript: input.voiceTranscripts?.[index] ?? "",
+        result,
+      })),
+    });
+    await this.repository.storePropertyIntelligence(propertyId, propertyIntelligence);
 
     return {
       propertyId,
@@ -240,18 +266,35 @@ export class PropertyBuilderService {
       photoCoverage: health.photoCoverage,
       suggestionsRefreshed: suggestions.length,
       assets: {
-        ...health.assets,
-        suggestedFaqs: voiceResults.flatMap((result) => result.suggestedFaqs),
+        ...generatePropertyAssets({
+          profile: intelligenceProfile,
+          photoCoverage: health.photoCoverage,
+          publicRemarks: propertyIntelligence.propertySummary,
+          pois: propertyIntelligence.rooms.map((room) => ({ title: room.name, subtitle: room.features[0] ?? null })),
+          suggestedFaqs: [
+            ...voiceResults.flatMap((result) => result.suggestedFaqs),
+            ...propertyIntelligence.possibleBuyerQuestions.slice(0, 6).map((question) => ({
+              question,
+              answer: propertyIntelligence.agentTalkingPoints[0] ?? propertyIntelligence.propertySummary,
+            })),
+          ],
+          features: propertyIntelligence.keyFeatures,
+        }),
         featureSheet: [
-          ...health.assets.featureSheet,
-          ...(mlsResult?.fields.features ?? []),
+          ...propertyIntelligence.keyFeatures,
+          ...propertyIntelligence.upgrades,
         ],
+        showingNotes: [
+          ...propertyIntelligence.agentTalkingPoints,
+          ...propertyIntelligence.missingInformation.map((item) => `Verify: ${item}`),
+        ].slice(0, 12),
       },
       extractions: {
         mls: mlsResult,
         photos: photoResults,
         documents: documentResults,
         voiceNotes: voiceResults,
+        propertyIntelligence,
       },
       builtAt: new Date().toISOString(),
     };
@@ -266,7 +309,7 @@ export class PropertyBuilderService {
       await this.twin.createKnowledgeObject(
         {
           propertyId,
-          category: "miscellaneous",
+          category: "other",
           name: feature,
           summary: `MLS feature: ${feature}`,
           confidenceLevel: "likely",

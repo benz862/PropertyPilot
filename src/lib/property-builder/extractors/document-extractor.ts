@@ -8,12 +8,17 @@ export interface DocumentExtractionInput {
   title: string;
   documentType: string;
   storagePath: string;
+  storageBucket?: string;
+  mimeType?: string | null;
 }
 
 export interface DocumentExtractionResult extends DocumentIntelligenceResult {
   source: "document";
   version: string;
   extractedAt: string;
+  documentId: string;
+  title: string;
+  storagePath: string;
   traceableSource: {
     documentId: string;
     title: string;
@@ -31,6 +36,8 @@ export async function extractDocumentIntelligence(
     title: input.title,
     documentType: input.documentType,
     storagePath: input.storagePath,
+    storageBucket: input.storageBucket,
+    mimeType: input.mimeType,
   });
 
   return {
@@ -38,6 +45,9 @@ export async function extractDocumentIntelligence(
     source: "document",
     version: EXTRACTOR_VERSION,
     extractedAt: new Date().toISOString(),
+    documentId: input.documentId,
+    title: input.title,
+    storagePath: input.storagePath,
     traceableSource: {
       documentId: input.documentId,
       title: input.title,

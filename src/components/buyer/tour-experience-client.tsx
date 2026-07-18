@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 import { AccessibilityControls } from "@/components/buyer/accessibility-controls";
@@ -15,6 +15,10 @@ import { buyerRoutes } from "@/lib/navigation/routes";
 import type { BuyerProfileMemory } from "@/lib/ai/conversation/buyer-profile";
 import type { ConversationMemoryState } from "@/lib/ai/types";
 import type { PropertyTwinContext } from "@/types/database";
+
+type SpeechRecognitionLike = {
+  stop: () => void;
+};
 
 interface TourPhoto {
   id: string;
@@ -61,6 +65,11 @@ export function TourExperienceClient({
   const [memory, setMemory] = useState<ConversationMemoryState | undefined>();
   const [buyerProfile, setBuyerProfile] = useState<BuyerProfileMemory | undefined>();
   const [hasInteracted, setHasInteracted] = useState(false);
+  const [lastAudio, setLastAudio] = useState<{ base64: string; mimeType: string } | null>(null);
+  const recognitionRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<BlobPart[]>([]);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     async function initSession() {
@@ -97,6 +106,18 @@ export function TourExperienceClient({
     void initSession();
   }, [areaTitle, poiId, propertyId, sessionToken]);
 
+  useEffect(() => {
+    return () => {
+      recognitionRef.current?.stop();
+      recognitionRef.current = null;
+      mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current = null;
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
   const activeSessionId = visitorSessionId ?? sessionToken;
 
   const sendMessage = useCallback(
@@ -108,18 +129,16 @@ export function TourExperienceClient({
       setHasInteracted(true);
 
       try {
-        const response = await fetch("/api/ai/voice", {
+        const formData = new FormData();
+        formData.append("propertyId", propertyId);
+        formData.append("visitorSessionId", activeSessionId);
+        formData.append("currentPoiId", poiId ?? "");
+        formData.append("message", message.trim());
+        formData.append("interrupted", String(interrupted));
+        formData.append("transcriptOnly", "false");
+        const response = await fetch("/api/ai/voice/audio", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            propertyId,
-            visitorSessionId: activeSessionId,
-            message: message.trim(),
-            currentPoiId: poiId ?? null,
-            memory,
-            buyerProfile,
-            interrupted,
-          }),
+          body: formData,
         });
 
         const result = (await response.json()) as {
@@ -130,8 +149,15 @@ export function TourExperienceClient({
             profileRecommendation?: string;
             memory?: ConversationMemoryState;
             buyerProfile?: BuyerProfileMemory;
+            audioBase64?: string | null;
+            audioMimeType?: string | null;
           } | null;
+          error?: string | null;
         };
+
+        if (!response.ok || result.error || !result.data) {
+          throw new Error(result.error ?? "Voice audio request failed");
+        }
 
         if (result.data) {
           setSpokenAnswer(result.data.spokenAnswer);
@@ -140,6 +166,10 @@ export function TourExperienceClient({
           setLiveSuggestion(suggestion);
           if (result.data.memory) setMemory(result.data.memory);
           if (result.data.buyerProfile) setBuyerProfile(result.data.buyerProfile);
+          if (result.data.audioBase64 && result.data.audioMimeType) {
+            setLastAudio({ base64: result.data.audioBase64, mimeType: result.data.audioMimeType });
+          }
+          await playReturnedAudio(result.data.audioBase64 ?? null, result.data.audioMimeType ?? null);
         }
       } catch {
         setOffline(true);
@@ -151,18 +181,125 @@ export function TourExperienceClient({
         setInputMessage("");
       }
     },
-    [agentName, activeSessionId, buyerProfile, isProcessing, memory, poiId, propertyId],
+    [activeSessionId, buyerProfile, isProcessing, memory, poiId, propertyId, agentName],
   );
 
-  function handleToggleListen() {
+  async function playReturnedAudio(audioBase64: string | null, mimeType: string | null) {
+    if (!audioBase64 || !mimeType || isMuted) return;
+    const binary = atob(audioBase64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    const blob = new Blob([bytes], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const player = audioPlayerRef.current ?? new Audio();
+    audioPlayerRef.current = player;
+    player.pause();
+    player.src = url;
+    await player.play().catch(() => undefined);
+    player.onended = () => URL.revokeObjectURL(url);
+  }
+
+  async function submitRecordedAudio(audioBlob: Blob) {
+    setIsProcessing(true);
+    setLiveSuggestion(null);
+    setHasInteracted(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("propertyId", propertyId);
+      formData.append("visitorSessionId", activeSessionId);
+      formData.append("currentPoiId", poiId ?? "");
+      formData.append("audio", audioBlob, "voice.webm");
+
+      const response = await fetch("/api/ai/voice/audio", {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = (await response.json()) as {
+        data: {
+          spokenAnswer: string;
+          offline: boolean;
+          roomTransition?: string;
+          profileRecommendation?: string;
+          memory?: ConversationMemoryState;
+          buyerProfile?: BuyerProfileMemory;
+          audioBase64?: string | null;
+          audioMimeType?: string | null;
+          transcript?: string;
+        } | null;
+        error?: string | null;
+      };
+
+      if (!response.ok || result.error || !result.data) {
+        throw new Error(result.error ?? "Voice audio request failed");
+      }
+
+      setSpokenAnswer(result.data.spokenAnswer);
+      setOffline(result.data.offline);
+      const suggestion = result.data.roomTransition ?? result.data.profileRecommendation ?? null;
+      setLiveSuggestion(suggestion);
+      if (result.data.memory) setMemory(result.data.memory);
+      if (result.data.buyerProfile) setBuyerProfile(result.data.buyerProfile);
+      if (result.data.audioBase64 && result.data.audioMimeType) {
+        setLastAudio({ base64: result.data.audioBase64, mimeType: result.data.audioMimeType });
+      }
+      await playReturnedAudio(result.data.audioBase64 ?? null, result.data.audioMimeType ?? null);
+    } catch {
+      setOffline(true);
+      setSpokenAnswer(
+        `I'm having trouble connecting right now, but you can still browse property photos and contact ${agentName}.`,
+      );
+    } finally {
+      setIsProcessing(false);
+    }
+  }
+
+  async function handleToggleListen() {
     if (isListening) {
+      recognitionRef.current?.stop();
+      recognitionRef.current = null;
+      mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current = null;
       setIsListening(false);
       return;
     }
-    setIsListening(true);
-    if (inputMessage.trim()) {
-      void sendMessage(inputMessage, true);
-      setIsListening(false);
+
+    if (typeof window === "undefined") return;
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      setOffline(true);
+      setSpokenAnswer(
+        `Voice recording is not available in this browser. You can still type a question or browse the photos and details.`,
+      );
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      mediaStreamRef.current = stream;
+      audioChunksRef.current = [];
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) audioChunksRef.current.push(event.data);
+      };
+      recorder.onstop = () => {
+        setIsListening(false);
+        const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        audioChunksRef.current = [];
+        mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+        mediaStreamRef.current = null;
+        void submitRecordedAudio(blob);
+      };
+      recognitionRef.current = recorder;
+      setIsListening(true);
+      recorder.start();
+    } catch {
+      setOffline(true);
+      setSpokenAnswer(
+        `I could not access the microphone. You can still type a question or browse the photos and details.`,
+      );
     }
   }
 
@@ -285,7 +422,11 @@ export function TourExperienceClient({
         isMuted={isMuted}
         onToggleListen={handleToggleListen}
         onToggleMute={() => setIsMuted((value) => !value)}
-        onReplay={() => setSpokenAnswer(welcomePrompt)}
+        onReplay={() => {
+          if (lastAudio) {
+            void playReturnedAudio(lastAudio.base64, lastAudio.mimeType);
+          }
+        }}
       />
     </div>
   );

@@ -25,8 +25,8 @@ export default async function GeneratedAssetsPage() {
 
   return (
     <RealtorLayoutShell
-      title="Generated Assets"
-      description="AI marketing materials across all listings."
+      title="Property Studio"
+      description="Assets generated from Property DNA across all listings."
       notifications={data.notifications}
     >
       {pdfs.length === 0 ? (

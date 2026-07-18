@@ -20,6 +20,9 @@ export const env = {
   openai: {
     apiKey: getOptionalEnvVar("OPENAI_API_KEY"),
   },
+  fal: {
+    apiKey: getOptionalEnvVar("FAL_KEY"),
+  },
   stripe: {
     secretKey: getOptionalEnvVar("STRIPE_SECRET_KEY"),
     webhookSecret: getOptionalEnvVar("STRIPE_WEBHOOK_SECRET"),
@@ -56,5 +59,11 @@ export function requireSupabaseEnv() {
 export function requireOpenAIEnv() {
   return {
     apiKey: getEnvVar("OPENAI_API_KEY"),
+  };
+}
+
+export function requireFalEnv() {
+  return {
+    apiKey: getEnvVar("FAL_KEY"),
   };
 }

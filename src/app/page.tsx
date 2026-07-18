@@ -60,12 +60,12 @@ export default function HomePage() {
           <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-28">
             <div className="mx-auto max-w-3xl text-center">
               <p className="mb-4 inline-flex items-center rounded-full border border-border bg-card px-4 py-1.5 text-sm font-medium text-muted-foreground shadow-sm">
-                AI property tours for modern realtors
+                The always-on guide for every showing
               </p>
 
               <h1 className="text-4xl font-bold tracking-normal text-foreground sm:text-5xl lg:text-6xl">
-                Every property becomes a{" "}
-                <span className="text-primary">self-guided</span> experience
+                Turn every showing into a{" "}
+                <span className="text-primary">conversation that moves buyers forward.</span>
               </h1>
 
               <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground sm:text-xl">
@@ -74,10 +74,10 @@ export default function HomePage() {
 
               <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
                 <Button size="lg" className="min-w-44" asChild>
-                  <Link href={siteConfig.links.signup}>Start free trial</Link>
+                  <Link href={siteConfig.links.signup}>Create your first experience</Link>
                 </Button>
                 <Button size="lg" variant="outline" className="min-w-44" asChild>
-                  <Link href="#how-it-works">See how it works</Link>
+                  <Link href="#how-it-works">See it in action</Link>
                 </Button>
               </div>
             </div>

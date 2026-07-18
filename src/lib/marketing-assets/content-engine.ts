@@ -30,23 +30,18 @@ export function generateMarketingContentDrafts(input: {
   contentType: MarketingContentType;
   evidenceKeys: string[];
 }): MarketingContentDraft[] {
-  const baseText =
-    input.contentType === "luxury_description"
-      ? input.copy.luxuryDescription
-      : input.contentType === "neighborhood_highlight"
-        ? input.copy.neighborhoodSummary
-        : input.copy.professionalDescription;
+  const profile = getContentProfile(input.contentType, input.copy);
 
   return input.channels.map((channel) => {
     const rules = CHANNEL_RULES[channel];
-    const body = `${baseText} ${rules.callToAction}`.slice(0, rules.maxLength);
+    const body = `${profile.baseText} ${profile.callToAction ?? rules.callToAction}`.trim().slice(0, rules.maxLength);
     return {
       id: crypto.randomUUID(),
       propertyId: input.propertyId,
       channel,
       contentType: input.contentType,
       status: "draft",
-      title: buildContentTitle(input.contentType),
+      title: profile.title,
       body,
       evidenceKeys: input.evidenceKeys,
       promptKey: PROPERTY_CONCIERGE_PROMPT.key,
@@ -57,9 +52,53 @@ export function generateMarketingContentDrafts(input: {
   });
 }
 
-function buildContentTitle(contentType: MarketingContentType): string {
-  return contentType
-    .split("_")
-    .map((part) => part[0]?.toUpperCase() + part.slice(1))
-    .join(" ");
+function getContentProfile(
+  contentType: MarketingContentType,
+  copy: CopywritingOutput,
+): {
+  baseText: string;
+  callToAction: string | null;
+  title: string;
+} {
+  switch (contentType) {
+    case "luxury_description":
+      return {
+        baseText: copy.luxuryDescription,
+        callToAction: "Luxury homes deserve private showings by appointment.",
+        title: "Luxury Description",
+      };
+    case "neighborhood_highlight":
+      return {
+        baseText: copy.neighborhoodSummary,
+        callToAction: "Ask for the neighborhood guide.",
+        title: "Neighborhood Highlight",
+      };
+    case "open_house_announcement":
+      return {
+        baseText: copy.professionalDescription,
+        callToAction: "Join us this weekend for the open house.",
+        title: "Open House Announcement",
+      };
+    case "just_listed":
+      return {
+        baseText: copy.professionalDescription,
+        callToAction: "Scan for the full property guide.",
+        title: "Just Listed",
+      };
+    case "price_reduction":
+      return {
+        baseText: copy.professionalDescription,
+        callToAction: "Contact the listing team for updated pricing.",
+        title: "Price Reduction",
+      };
+    default:
+      return {
+        baseText: copy.professionalDescription,
+        callToAction: "View the complete property guide.",
+        title: contentType
+          .split("_")
+          .map((part) => part[0]?.toUpperCase() + part.slice(1))
+          .join(" "),
+      };
+  }
 }

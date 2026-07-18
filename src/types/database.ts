@@ -204,6 +204,7 @@ export interface Property {
   voice_personality_id?: string | null;
   ai_policy_id?: string | null;
   published_at?: string | null;
+  dna_version?: number;
   deleted_at?: string | null;
   created_at: string;
   updated_at: string;
@@ -391,6 +392,76 @@ export interface VoiceNoteRow {
   updated_at: string;
 }
 
+export interface PropertyIntelligenceRow {
+  id: string;
+  property_id: string;
+  intelligence: Record<string, unknown>;
+  source_map: unknown[];
+  missing_information: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PropertyRoom {
+  id: string;
+  property_id: string;
+  name: string;
+  description: string | null;
+  features: unknown[];
+  updates: unknown[];
+  included_items: unknown[];
+  talking_points: unknown[];
+  cautions: unknown[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PropertyAssetRow {
+  id: string;
+  property_id: string;
+  asset_type: string;
+  section: string;
+  title: string;
+  content: string | null;
+  file_url: string | null;
+  status: string;
+  source_dna_version: number | null;
+  last_generated_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BuyerQuestionRow {
+  id: string;
+  organization_id: string | null;
+  property_id: string;
+  visitor_session_id: string | null;
+  lead_id: string | null;
+  room_id: string | null;
+  selected_room: string | null;
+  question: string;
+  normalized_question: string | null;
+  answer: string | null;
+  confidence: string | null;
+  answered_from_sources: unknown[];
+  needs_agent_followup: boolean;
+  buyer_name: string | null;
+  buyer_email: string | null;
+  buyer_phone: string | null;
+  input_type: string | null;
+  user_agent: string | null;
+  status: string;
+  intent: ConversationIntent;
+  knowledge_object_ids: string[];
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+  updated_by: string | null;
+  deleted_at: string | null;
+  version: number;
+}
+
 export interface NeighborhoodIntelligenceRow {
   id: string;
   property_id: string;
@@ -418,6 +489,28 @@ export interface Photo {
   suggested_knowledge_objects?: unknown[];
   analysis_status?: string;
   deleted_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type StagedPhotoStatus = "pending" | "processing" | "succeeded" | "failed";
+
+export interface StagedPhoto {
+  id: string;
+  property_id: string;
+  source_photo_id: string;
+  style: string;
+  status: StagedPhotoStatus;
+  provider: string;
+  provider_request_id: string | null;
+  result_storage_bucket: string;
+  result_storage_path: string | null;
+  result_photo_id: string | null;
+  error_message: string | null;
+  created_by: string | null;
+  updated_by?: string | null;
+  deleted_at?: string | null;
+  version?: number;
   created_at: string;
   updated_at: string;
 }
@@ -667,6 +760,7 @@ export interface Database {
       appliances: TableDef<Appliance>;
       documents: TableDef<Document>;
       photos: TableDef<Photo>;
+      staged_photos: TableDef<StagedPhoto>;
       points_of_interest: TableDef<PointOfInterest>;
       voice_personalities: TableDef<VoicePersonality>;
       ai_policies: TableDef<AiPolicy>;
@@ -689,6 +783,10 @@ export interface Database {
       twin_audit_log: TableDef<TwinAuditLogRow>;
       voice_notes: TableDef<VoiceNoteRow>;
       neighborhood_intelligence: TableDef<NeighborhoodIntelligenceRow>;
+      property_intelligence: TableDef<PropertyIntelligenceRow>;
+      property_rooms: TableDef<PropertyRoom>;
+      property_assets: TableDef<PropertyAssetRow>;
+      buyer_questions: TableDef<BuyerQuestionRow>;
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
