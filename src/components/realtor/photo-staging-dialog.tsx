@@ -69,16 +69,6 @@ export function PhotoStagingDialog({
   });
 
   useEffect(() => {
-    if (!open) {
-      setJob(null);
-      setError(null);
-      setIsStarting(false);
-      setIsPromoting(false);
-      return;
-    }
-  }, [open]);
-
-  useEffect(() => {
     if (!job || job.status === "succeeded" || job.status === "failed") {
       return;
     }
@@ -88,7 +78,17 @@ export function PhotoStagingDialog({
     }, 2000);
 
     return () => window.clearInterval(interval);
-  }, [job, pollJob]);
+  }, [job]);
+
+  function handleOpenChange(nextOpen: boolean) {
+    if (!nextOpen) {
+      setJob(null);
+      setError(null);
+      setIsStarting(false);
+      setIsPromoting(false);
+    }
+    onOpenChange(nextOpen);
+  }
 
   async function startStaging() {
     setIsStarting(true);
@@ -151,7 +151,7 @@ export function PhotoStagingDialog({
   const succeeded = job?.status === "succeeded" && job.result_url;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Virtual staging</DialogTitle>
@@ -264,7 +264,7 @@ export function PhotoStagingDialog({
               </>
             )}
           </div>
-          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+          <Button type="button" variant="ghost" onClick={() => handleOpenChange(false)}>
             Close
           </Button>
         </DialogFooter>
