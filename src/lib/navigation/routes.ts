@@ -92,7 +92,7 @@ export const wizardSteps: Array<{
   description: string;
 }> = [
   { id: "basic-info", label: "Basic Info", description: "Address and property details" },
-  { id: "mls", label: "Upload MLS", description: "Import listing data" },
+  { id: "mls", label: "Listing Source & MLS", description: "Save a reference link and import listing data" },
   { id: "photos", label: "Photos", description: "Upload property photos" },
   { id: "documents", label: "Documents", description: "Inspection reports and files" },
   { id: "room-knowledge", label: "Room Knowledge", description: "Room-specific buyer answers" },
