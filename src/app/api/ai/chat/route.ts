@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 
 import { processAiChat } from "@/lib/ai";
-import { createClient } from "@/lib/supabase/server";
+import { hasSessionForPublicTour } from "@/lib/public-tour/authorization";
+import { createServiceClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
@@ -24,7 +25,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const supabase = await createClient();
+    const supabase = createServiceClient();
+    if (!(await hasSessionForPublicTour(supabase, body.propertyId, body.visitorSessionId))) {
+      return NextResponse.json({ error: "Tour session not found" }, { status: 404 });
+    }
 
     const response = await processAiChat(supabase, {
       propertyId: body.propertyId,

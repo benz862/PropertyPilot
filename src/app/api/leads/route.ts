@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { env } from "@/lib/env";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import { GhlService, type GhlLeadPayload } from "@/services/crm/ghl.service";
 
 export const runtime = "nodejs";
@@ -11,8 +10,6 @@ interface LeadRequestBody {
   firstName?: string;
   lastName?: string;
   email?: string;
-  phone?: string;
-  preferredContact?: string;
   timeline?: string;
   intent?: string;
   workingWithRealtor?: boolean;
@@ -39,18 +36,31 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Consent is required" }, { status: 400 });
     }
 
-    if (!env.supabase.url || !env.supabase.anonKey) {
-      return NextResponse.json({ data: { saved: false }, error: null });
+    const email = body.email?.trim().toLowerCase();
+    if (!email || !isEmail(email)) {
+      return NextResponse.json({ error: "A valid email address is required" }, { status: 400 });
     }
 
-    const supabase = await createClient();
+    const supabase = createServiceClient();
+    const { data: property } = await supabase
+      .from("properties")
+      .select("id, street, city, owner_id, status")
+      .eq("id", body.propertyId)
+      .in("status", ["active", "published"])
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    if (!property) {
+      return NextResponse.json({ data: null, error: "Property not found" }, { status: 404 });
+    }
+
+    const visitorSessionId = await resolveVisitorSessionId(supabase, body.visitorSessionId, property.id);
     const name = [body.firstName, body.lastName].filter(Boolean).join(" ") || null;
     const brochureRequested = body.brochureRequested ?? true;
     const showingRequested = body.showingRequested ?? body.intent === "buying";
     const buyerInterests = normalizeList(body.buyerInterests, [
       body.intent ? `Intent: ${body.intent}` : null,
       body.timeline ? `Timeline: ${body.timeline}` : null,
-      body.preferredContact ? `Preferred contact: ${body.preferredContact}` : null,
     ]);
     const buyerConcerns = normalizeList(body.buyerConcerns, [body.notes ?? null]);
     const aiConversationSummary = body.aiConversationSummary ?? body.notes ?? null;
@@ -66,7 +76,6 @@ export async function POST(request: Request) {
     const noteParts = [
       body.timeline ? `Timeline: ${body.timeline}` : null,
       body.intent ? `Intent: ${body.intent}` : null,
-      body.preferredContact ? `Preferred contact: ${body.preferredContact}` : null,
       body.workingWithRealtor ? "Already working with a realtor" : null,
       body.notes ?? null,
     ].filter(Boolean);
@@ -74,11 +83,11 @@ export async function POST(request: Request) {
     const { data, error } = await supabase
       .from("leads")
       .insert({
-        property_id: body.propertyId,
-        visitor_session_id: body.visitorSessionId ?? null,
+        property_id: property.id,
+        visitor_session_id: visitorSessionId,
         name,
-        email: body.email ?? null,
-        phone: body.phone ?? null,
+        email,
+        phone: null,
         consent_given: true,
         requested_pdf: brochureRequested,
         requested_showing: showingRequested,
@@ -96,12 +105,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ data: null, error: error.message }, { status: 500 });
     }
 
-    const { data: property } = await supabase
-      .from("properties")
-      .select("street, city, owner_id")
-      .eq("id", body.propertyId)
-      .maybeSingle();
-
     let crmSync: { attempted: boolean; success: boolean; error: string | null } = {
       attempted: false,
       success: false,
@@ -111,12 +114,12 @@ export async function POST(request: Request) {
     if (property) {
       crmSync = await trySyncLeadToGhl(supabase, {
         leadId: data.id,
-        propertyId: body.propertyId,
+        propertyId: property.id,
         propertyAddress: `${property.street}, ${property.city}`,
         firstName: body.firstName ?? null,
         lastName: body.lastName ?? null,
-        email: body.email ?? null,
-        phone: body.phone ?? null,
+        email,
+        phone: null,
         buyerIntentScore,
         buyerInterests,
         buyerConcerns,
@@ -137,7 +140,7 @@ export async function POST(request: Request) {
 }
 
 async function trySyncLeadToGhl(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  supabase: ReturnType<typeof createServiceClient>,
   lead: GhlLeadPayload,
 ) {
   try {
@@ -155,6 +158,25 @@ async function trySyncLeadToGhl(
       error: error instanceof Error ? error.message : "GHL sync failed",
     };
   }
+}
+
+async function resolveVisitorSessionId(
+  supabase: ReturnType<typeof createServiceClient>,
+  sessionId: string | undefined,
+  propertyId: string,
+): Promise<string | null> {
+  if (!sessionId) return null;
+  const { data } = await supabase
+    .from("visitor_sessions")
+    .select("id")
+    .eq("id", sessionId)
+    .eq("property_id", propertyId)
+    .maybeSingle();
+  return data?.id ?? null;
+}
+
+function isEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
 function normalizeList(value: string[] | undefined, fallback: Array<string | null>): string[] {

@@ -4,7 +4,7 @@ import {
   createVisitorSession,
   getVisitorSession,
 } from "@/lib/repositories/session-repository";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
@@ -26,19 +26,31 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "propertyId is required" }, { status: 400 });
     }
 
-    const supabase = await createClient();
+    const supabase = createServiceClient();
     const sessionToken = body.sessionToken ?? crypto.randomUUID();
+
+    const { data: property } = await supabase
+      .from("properties")
+      .select("id")
+      .eq("id", body.propertyId)
+      .in("status", ["active", "published"])
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    if (!property) {
+      return NextResponse.json({ data: null, error: "Property not found" }, { status: 404 });
+    }
 
     const existing = body.sessionToken
       ? await getVisitorSession(supabase, sessionToken)
       : null;
 
-    if (existing) {
+    if (existing && existing.property_id === property.id) {
       return NextResponse.json({ data: existing, error: null });
     }
 
     const session = await createVisitorSession(supabase, {
-      propertyId: body.propertyId,
+      propertyId: property.id,
       sessionToken,
       currentPoiId: body.currentPoiId,
       deviceType: body.deviceType,

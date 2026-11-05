@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 
 import { createBuyerActivityService } from "@/lib/property-dna/buyer-activity";
 import type { BuyerEventType } from "@/lib/property-dna/buyer-activity";
+import { hasSessionForPublicTour } from "@/lib/public-tour/authorization";
 import { getPublicPropertyBySlugOrId } from "@/lib/public-room-agent/service";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
@@ -35,10 +36,14 @@ export async function POST(request: Request, { params }: RouteParams) {
       return NextResponse.json({ data: null, error: "Invalid event type" }, { status: 400 });
     }
 
-    const client = await createClient();
+    const client = createServiceClient();
     const property = await getPublicPropertyBySlugOrId(client, slug);
     if (!property) {
       return NextResponse.json({ data: null, error: "Property not found" }, { status: 404 });
+    }
+
+    if (body.sessionId && !(await hasSessionForPublicTour(client, property.id, body.sessionId))) {
+      return NextResponse.json({ data: null, error: "Tour session not found" }, { status: 404 });
     }
 
     await createBuyerActivityService(client).recordEvent({

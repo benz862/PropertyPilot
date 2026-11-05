@@ -2,21 +2,31 @@ import { apiError, apiSuccess } from "@/lib/api/response";
 import { requireAuthenticatedUser } from "@/lib/api/auth";
 import { createClient } from "@/lib/supabase/server";
 import { env } from "@/lib/env";
-import { GhlService } from "@/services/crm/ghl.service";
 
 export const runtime = "nodejs";
 
 export async function GET() {
   try {
-    await requireAuthenticatedUser();
+    const user = await requireAuthenticatedUser();
     const supabase = await createClient();
-    const ghl = new GhlService(supabase);
+    const [{ data: profile }, { data: connection }] = await Promise.all([
+      supabase.from("profiles").select("ghl_location_id").eq("id", user.id).maybeSingle(),
+      supabase
+        .from("crm_connections")
+        .select("location_id, status, auth_type")
+        .eq("provider", "gohighlevel")
+        .eq("profile_id", user.id)
+        .eq("status", "active")
+        .is("deleted_at", null)
+        .maybeSingle(),
+    ]);
+    const locationConfigured = Boolean(profile?.ghl_location_id && connection?.location_id);
 
     return apiSuccess({
       provider: "gohighlevel",
-      authType: "private_token",
-      connected: ghl.isConfigured(),
-      locationConfigured: Boolean(env.ghl.locationId),
+      authType: connection?.auth_type ?? "private_token",
+      connected: Boolean(env.ghl.privateIntegrationToken && locationConfigured),
+      locationConfigured,
       tokenConfigured: Boolean(env.ghl.privateIntegrationToken),
       oauthEnabled: false,
       marketplaceAppEnabled: false,

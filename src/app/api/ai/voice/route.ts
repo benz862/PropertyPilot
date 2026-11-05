@@ -5,7 +5,8 @@ import {
   processVoiceConcierge,
 } from "@/lib/ai/voice/concierge";
 import { env } from "@/lib/env";
-import { createClient } from "@/lib/supabase/server";
+import { hasSessionForPublicTour } from "@/lib/public-tour/authorization";
+import { createServiceClient } from "@/lib/supabase/server";
 import type { BuyerProfileMemory } from "@/lib/ai/conversation/buyer-profile";
 import type { ConversationMemoryState } from "@/lib/ai/types";
 
@@ -33,14 +34,18 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!env.supabase.url || !env.supabase.anonKey) {
+    if (!env.supabase.url || !env.supabase.serviceRoleKey) {
       return NextResponse.json({
         data: createOfflineConciergeResponse("the listing agent"),
         error: null,
       });
     }
 
-    const supabase = await createClient();
+    const supabase = createServiceClient();
+
+    if (!(await hasSessionForPublicTour(supabase, body.propertyId, body.visitorSessionId))) {
+      return NextResponse.json({ error: "Tour session not found" }, { status: 404 });
+    }
 
     if (!body.message?.trim()) {
       return NextResponse.json(

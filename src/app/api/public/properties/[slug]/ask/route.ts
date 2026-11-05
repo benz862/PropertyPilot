@@ -16,7 +16,6 @@ interface AskRequestBody {
   inputType?: "voice" | "text";
   buyerName?: string | null;
   buyerEmail?: string | null;
-  buyerPhone?: string | null;
   questionId?: string | null;
   requestedFeatureSheet?: boolean;
 }
@@ -30,12 +29,11 @@ export async function POST(request: Request, { params }: RouteParams) {
     // Service role: public Q&A must write buyer_questions/leads and return IDs under RLS.
     const client = createServiceClient();
 
-    if (body.questionId && body.buyerName?.trim() && body.buyerEmail?.trim()) {
+    if (body.questionId && body.buyerEmail?.trim()) {
       const result = await attachLeadToQuestion(client, slug, {
         questionId: body.questionId,
-        buyerName: body.buyerName.trim(),
+        buyerName: body.buyerName?.trim() || null,
         buyerEmail: body.buyerEmail.trim(),
-        buyerPhone: body.buyerPhone?.trim() || null,
         requestedFeatureSheet: body.requestedFeatureSheet ?? false,
       });
       return NextResponse.json({ data: result, error: null });
@@ -52,7 +50,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       inputType: body.inputType ?? "text",
       buyerName: body.buyerName ?? null,
       buyerEmail: body.buyerEmail ?? null,
-      buyerPhone: body.buyerPhone ?? null,
+      buyerPhone: null,
       userAgent: request.headers.get("user-agent"),
     });
 

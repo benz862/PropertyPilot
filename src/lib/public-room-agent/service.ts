@@ -75,9 +75,8 @@ export interface AskRoomQuestionResult {
 
 export interface AttachLeadToQuestionInput {
   questionId: string;
-  buyerName: string;
+  buyerName?: string | null;
   buyerEmail: string;
-  buyerPhone?: string | null;
   requestedFeatureSheet?: boolean;
 }
 
@@ -222,7 +221,7 @@ export async function attachLeadToQuestion(
     .update({
       buyer_name: input.buyerName,
       buyer_email: input.buyerEmail,
-      buyer_phone: input.buyerPhone ?? null,
+      buyer_phone: null,
     })
     .eq("id", input.questionId)
     .eq("property_id", property.id);
@@ -234,9 +233,9 @@ export async function attachLeadToQuestion(
       selectedRoom: question.selected_room ?? "Whole Property",
       question: question.question,
       inputType: "text",
-      buyerName: input.buyerName,
+      buyerName: input.buyerName ?? null,
       buyerEmail: input.buyerEmail,
-      buyerPhone: input.buyerPhone ?? null,
+      buyerPhone: null,
     },
     input.questionId,
     {
@@ -249,7 +248,11 @@ export async function attachLeadToQuestion(
 }
 
 async function findProperty(client: Client, slugOrId: string): Promise<Property | null> {
-  const query = client.from("properties").select("*").is("deleted_at", null);
+  const query = client
+    .from("properties")
+    .select("*")
+    .in("status", ["active", "published"])
+    .is("deleted_at", null);
   const { data, error } = await (isUuid(slugOrId)
     ? query.eq("id", slugOrId).maybeSingle()
     : query.eq("slug", slugOrId).maybeSingle());

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -28,11 +29,13 @@ export function LeadCaptureForm({ slug, propertyId, visitorSessionId }: LeadCapt
   const router = useRouter();
   const [consent, setConsent] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!consent) return;
 
+    setError(null);
     setIsSubmitting(true);
 
     const formData = new FormData(event.currentTarget);
@@ -42,8 +45,6 @@ export function LeadCaptureForm({ slug, propertyId, visitorSessionId }: LeadCapt
       firstName: formData.get("firstName") as string,
       lastName: formData.get("lastName") as string,
       email: formData.get("email") as string,
-      phone: formData.get("phone") as string,
-      preferredContact: formData.get("preferredContact") as string,
       timeline: formData.get("timeline") as string,
       intent: formData.get("intent") as string,
       workingWithRealtor: formData.get("workingWithRealtor") === "on",
@@ -52,25 +53,29 @@ export function LeadCaptureForm({ slug, propertyId, visitorSessionId }: LeadCapt
     };
 
     try {
-      await fetch("/api/leads", {
+      const response = await fetch("/api/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-    } catch {
-      // Lead capture should feel effortless — proceed to thank you even on error.
+      const result = (await response.json()) as { error?: string | null };
+      if (!response.ok) throw new Error(result.error ?? "We could not save your request.");
+      router.push(buyerRoutes.thanks(slug));
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : "We could not save your request.");
+    } finally {
+      setIsSubmitting(false);
     }
-
-    router.push(buyerRoutes.thanks(slug));
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <p className="text-sm leading-relaxed text-muted-foreground">
-        If you&apos;d like, I can email you the complete property guide, floor plan,
-        and feature sheet. Everything here is optional — share only what you&apos;re
-        comfortable with.
+        Receive the complete property guide, floor plan, and feature sheet by email.
+        Your name is optional; we use your email only for this property request.
       </p>
+
+      {error && <Alert variant="error" title="Please try again">{error}</Alert>}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
@@ -85,26 +90,7 @@ export function LeadCaptureForm({ slug, propertyId, visitorSessionId }: LeadCapt
 
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
-        <Input id="email" name="email" type="email" autoComplete="email" />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="phone">Phone</Label>
-        <Input id="phone" name="phone" type="tel" autoComplete="tel" />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="preferredContact">Preferred Contact Method</Label>
-        <Select name="preferredContact">
-          <SelectTrigger id="preferredContact">
-            <SelectValue placeholder="Select preference" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="email">Email</SelectItem>
-            <SelectItem value="phone">Phone</SelectItem>
-            <SelectItem value="text">Text</SelectItem>
-          </SelectContent>
-        </Select>
+        <Input id="email" name="email" type="email" autoComplete="email" required />
       </div>
 
       <div className="space-y-2">
@@ -157,8 +143,7 @@ export function LeadCaptureForm({ slug, propertyId, visitorSessionId }: LeadCapt
           aria-required
         />
         <Label htmlFor="consent" className="font-normal leading-relaxed">
-          I consent to being contacted about this property. This is the only required
-          field.
+          I agree to receive an email about this property from the listing agent.
         </Label>
       </div>
 

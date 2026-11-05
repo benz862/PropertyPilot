@@ -48,10 +48,6 @@ export class GHLSyncService {
   async syncBuyerLead(input: BuyerLeadSyncInput): Promise<BuyerLeadSyncResult> {
     const tags = buildBuyerTags(input);
 
-    if (!this.ghl.isConfigured()) {
-      return { synced: false, skipped: true, contactId: null, opportunityId: null, taskCreated: false, tags, error: null };
-    }
-
     try {
       const { firstName, lastName } = splitName(input.buyerName);
       const payload: GhlLeadPayload = {
@@ -70,15 +66,25 @@ export class GHLSyncService {
         aiConversationSummary: null,
       };
 
-      const contact = await this.ghl.createOrUpdateContact(payload);
-      await this.ghl.addContactTags(contact.contactId, tags);
-      await this.ghl.addContactNoteText(contact.contactId, buildNote(input));
+      const synced = await this.ghl.syncLeadToGHL(payload);
+      if (!synced.success || !synced.contactId) {
+        return {
+          synced: false,
+          skipped: !this.ghl.isConfigured(),
+          contactId: null,
+          opportunityId: null,
+          taskCreated: false,
+          tags,
+          error: synced.error,
+        };
+      }
 
-      const opportunity = await this.ghl.createOpportunity(contact.contactId, payload);
+      await this.ghl.addContactTags(synced.contactId, tags);
+      await this.ghl.addContactNoteText(synced.contactId, buildNote(input));
 
       let taskCreated = false;
       if (input.needsAgentFollowup) {
-        await this.ghl.createContactTask(contact.contactId, {
+        await this.ghl.createContactTask(synced.contactId, {
           title: "Answer PropertyPilot buyer question",
           body: buildTaskBody(input),
         });
@@ -88,8 +94,8 @@ export class GHLSyncService {
       return {
         synced: true,
         skipped: false,
-        contactId: contact.contactId,
-        opportunityId: opportunity.opportunityId,
+        contactId: synced.contactId,
+        opportunityId: synced.opportunityId,
         taskCreated,
         tags,
         error: null,

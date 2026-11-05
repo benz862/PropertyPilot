@@ -4,7 +4,7 @@ import {
   createVisitorSession,
   getVisitorSession,
 } from "@/lib/repositories/session-repository";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 
 import {
   buildAccessUrl,
@@ -94,7 +94,7 @@ export class PropertyAccessService {
 
   async resolveToken(publicToken: string, preview = false): Promise<AccessResolution | null> {
     const stored = tokenStore.get(publicToken);
-    const client = await createClient();
+    const client = createServiceClient();
 
     let propertyId: string | null = stored?.propertyId ?? null;
 
@@ -176,7 +176,7 @@ export class PropertyAccessService {
     currentPoiId?: string | null;
     isPreview?: boolean;
   }): Promise<VisitorSessionContext> {
-    const client = await createClient();
+    const client = createServiceClient();
     const sessionToken = input.sessionToken ?? crypto.randomUUID();
     const userAgent = input.userAgent ?? "unknown";
 

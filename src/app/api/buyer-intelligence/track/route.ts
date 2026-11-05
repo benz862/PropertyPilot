@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 
 import { recordAnalyticsEvent } from "@/lib/repositories/session-repository";
 import { env } from "@/lib/env";
-import { createClient } from "@/lib/supabase/server";
+import { hasSessionForPublicTour } from "@/lib/public-tour/authorization";
+import { createServiceClient } from "@/lib/supabase/server";
 import type { AnalyticsEventType } from "@/types/database";
 
 export const runtime = "nodejs";
@@ -26,11 +27,14 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!env.supabase.url || !env.supabase.anonKey) {
+    if (!env.supabase.url || !env.supabase.serviceRoleKey) {
       return NextResponse.json({ data: { tracked: false }, error: null });
     }
 
-    const client = await createClient();
+    const client = createServiceClient();
+    if (!(await hasSessionForPublicTour(client, body.propertyId, body.visitorSessionId))) {
+      return NextResponse.json({ error: "Tour session not found" }, { status: 404 });
+    }
     await recordAnalyticsEvent(client, {
       propertyId: body.propertyId,
       visitorSessionId: body.visitorSessionId,

@@ -56,6 +56,7 @@ interface CrmConnectionRow {
   organization_id: string | null;
   location_id: string;
   status: string;
+  deleted_at: string | null;
 }
 
 type CrmDatabase = {
@@ -79,7 +80,7 @@ type CrmDatabase = {
 
 export class GhlService {
   private readonly token: string | undefined;
-  private readonly locationId: string | undefined;
+  private locationId: string | undefined;
   private readonly fetchImpl: typeof fetch;
   private readonly crmClient: SupabaseClient<CrmDatabase>;
 
@@ -88,13 +89,15 @@ export class GhlService {
     options: GhlServiceOptions = {},
   ) {
     this.token = options.token ?? env.ghl.privateIntegrationToken;
-    this.locationId = options.locationId ?? env.ghl.locationId;
+    // A location is selected from the property owner at sync time. Never use one
+    // shared environment location for a multi-agent portfolio.
+    this.locationId = options.locationId;
     this.fetchImpl = options.fetchImpl ?? fetch;
     this.crmClient = supabase as unknown as SupabaseClient<CrmDatabase>;
   }
 
   isConfigured(): boolean {
-    return Boolean(this.token && this.locationId);
+    return Boolean(this.token);
   }
 
   async createOrUpdateContact(lead: GhlLeadPayload): Promise<GhlContactResult> {
@@ -210,7 +213,39 @@ export class GhlService {
 
   async syncLeadToGHL(lead: GhlLeadPayload): Promise<GhlSyncResult> {
     const tags = buildTags(lead);
-    const connection = await this.ensureConnection();
+    const connection = await this.resolveConnectionForProperty(lead.propertyId);
+
+    if (!connection) {
+      return {
+        success: false,
+        contactId: null,
+        opportunityId: null,
+        error: "The listing agent has not connected a GoHighLevel sub-account.",
+        tags,
+      };
+    }
+
+    this.locationId = connection.location_id;
+
+    if (!this.token) {
+      await this.logSync({
+        connectionId: connection.id,
+        lead,
+        status: "failed",
+        contactId: null,
+        opportunityId: null,
+        requestPayload: toJson({ lead, tags }),
+        responsePayload: {},
+        error: "Missing GHL_PRIVATE_INTEGRATION_TOKEN",
+      });
+      return {
+        success: false,
+        contactId: null,
+        opportunityId: null,
+        error: "PropertyPilot's GoHighLevel connection is not configured.",
+        tags,
+      };
+    }
 
     try {
       const contact = await this.createOrUpdateContact(lead);
@@ -262,31 +297,26 @@ export class GhlService {
     }
   }
 
-  private async ensureConnection(): Promise<CrmConnectionRow | null> {
-    if (!this.locationId) return null;
+  private async resolveConnectionForProperty(propertyId: string): Promise<CrmConnectionRow | null> {
+    const { data: property } = await this.supabase
+      .from("properties")
+      .select("owner_id")
+      .eq("id", propertyId)
+      .is("deleted_at", null)
+      .maybeSingle();
 
-    try {
-      const { data } = await this.crmClient
-        .from("crm_connections")
-        .upsert(
-          {
-            provider: "gohighlevel",
-            auth_type: "private_token",
-            location_id: this.locationId,
-            status: this.isConfigured() ? "active" : "error",
-            last_sync_status: "pending",
-            last_sync_error: this.isConfigured() ? null : "Missing GHL private token or location id",
-            metadata: { source: "env_private_token" },
-          },
-          { onConflict: "provider,location_id,profile_id" },
-        )
-        .select("id, provider, auth_type, profile_id, organization_id, location_id, status")
-        .maybeSingle();
+    if (!property?.owner_id) return null;
 
-      return (data as CrmConnectionRow | null) ?? null;
-    } catch {
-      return null;
-    }
+    const { data } = await this.crmClient
+      .from("crm_connections")
+      .select("id, provider, auth_type, profile_id, organization_id, location_id, status, deleted_at")
+      .eq("provider", "gohighlevel")
+      .eq("profile_id", property.owner_id)
+      .eq("status", "active")
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    return (data as CrmConnectionRow | null) ?? null;
   }
 
   private async logSync(input: {

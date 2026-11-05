@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getPublicPropertyBySlugOrId } from "@/lib/public-room-agent/service";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
@@ -12,7 +12,7 @@ interface RouteParams {
 export async function GET(_request: Request, { params }: RouteParams) {
   try {
     const { slug } = await params;
-    const client = await createClient();
+    const client = createServiceClient();
     const property = await getPublicPropertyBySlugOrId(client, slug);
 
     if (!property) {

@@ -5,7 +5,7 @@ import {
 } from "@/lib/repositories/property-repository";
 import { env } from "@/lib/env";
 import { getPhotoPublicUrl } from "@/lib/storage/photo-url";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import type { PointOfInterest, Property, PropertyTwinContext } from "@/types/database";
 
 export interface TourPropertyData {
@@ -27,21 +27,23 @@ const DEFAULT_AI_GUIDE_INTRO =
 export async function getTourPropertyBySlug(
   slug: string,
 ): Promise<TourPropertyData | null> {
-  if (!env.supabase.url || !env.supabase.anonKey) {
+  if (!env.supabase.url || !env.supabase.serviceRoleKey) {
     return null;
   }
 
-  const client = await createClient();
+  const client = createServiceClient();
   const property = await getPropertyBySlug(client, slug);
 
-  if (!property || property.deleted_at) {
+  if (!property || property.deleted_at || !["active", "published"].includes(property.status)) {
     return null;
   }
 
-  const context = await loadPropertyTwinContext(client, property.id);
-  if (!context) {
+  const fullContext = await loadPropertyTwinContext(client, property.id);
+  if (!fullContext) {
     return null;
   }
+
+  const context = sanitizeTourContext(fullContext);
 
   const pois = await getPointsOfInterest(client, property.id);
   const primaryPhoto = context.photos.find((photo) => photo.is_primary);
@@ -81,6 +83,37 @@ export async function getTourPropertyBySlug(
       context.voicePersonality?.greeting ??
       `Welcome to ${property.street}. Take a private AI-guided tour — ask questions naturally as you explore.`,
     aiGuideIntro: context.voicePersonality?.greeting ?? DEFAULT_AI_GUIDE_INTRO,
+  };
+}
+
+/**
+ * A Server Component serializes props to the browser. Keep the buyer payload
+ * intentionally small so private notes, source documents, and ownership data
+ * never become page source merely because the server can read them.
+ */
+function sanitizeTourContext(context: PropertyTwinContext): PropertyTwinContext {
+  return {
+    ...context,
+    property: {
+      ...context.property,
+      owner_id: "",
+      mls_number: null,
+      private_notes: null,
+      utilities: {},
+      tax_information: {},
+    },
+    knowledgeObjects: context.knowledgeObjects.map((item) => ({
+      ...item,
+      verified_facts: [],
+      unknown_facts: [],
+    })),
+    systems: context.systems.map((item) => ({ ...item, notes: null })),
+    appliances: [],
+    documents: [],
+    photos: [],
+    pointsOfInterest: [],
+    aiPolicy: null,
+    currentPoi: null,
   };
 }
 

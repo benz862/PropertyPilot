@@ -64,7 +64,9 @@ async function trackBuyerEvent(
 }
 
 export function QrRoomAgentClient({ property }: QrRoomAgentClientProps) {
-  const sessionId = useRef(createSessionId());
+  const sessionToken = useRef(createSessionId());
+  const activeSessionRef = useRef<string | null>(null);
+  const [visitorSessionId, setVisitorSessionId] = useState<string | null>(null);
   const [selectedRoomKey, setSelectedRoomKey] = useState(
     roomKey(property.rooms[0]?.id ?? null, property.rooms[0]?.name ?? "Whole Property"),
   );
@@ -74,7 +76,6 @@ export function QrRoomAgentClient({ property }: QrRoomAgentClientProps) {
   const [listening, setListening] = useState(false);
   const [leadName, setLeadName] = useState("");
   const [leadEmail, setLeadEmail] = useState("");
-  const [leadPhone, setLeadPhone] = useState("");
   const [leadSaved, setLeadSaved] = useState(false);
   const [requestingFeatureSheet, setRequestingFeatureSheet] = useState(false);
 
@@ -87,19 +88,41 @@ export function QrRoomAgentClient({ property }: QrRoomAgentClientProps) {
   }, [selectedRoomKey]);
 
   useEffect(() => {
-    const session = sessionId.current;
-    void trackBuyerEvent(property.slug, session, "page_open", selectedRoom.name);
-    void trackBuyerEvent(property.slug, session, "session_started", selectedRoom.name);
+    let cancelled = false;
+    async function startSession() {
+      try {
+        const response = await fetch("/api/tour/session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ propertyId: property.id, sessionToken: sessionToken.current }),
+        });
+        const result = (await response.json()) as { data?: { id?: string } };
+        const id = result.data?.id;
+        if (!id || cancelled) return;
+        activeSessionRef.current = id;
+        setVisitorSessionId(id);
+        await trackBuyerEvent(property.slug, id, "page_open", selectedRoom.name);
+        await trackBuyerEvent(property.slug, id, "session_started", selectedRoom.name);
+      } catch {
+        // A tour must still work if analytics is unavailable.
+      }
+    }
+    void startSession();
 
     return () => {
-      void trackBuyerEvent(property.slug, session, "session_ended", selectedRoom.name);
+      cancelled = true;
+      if (activeSessionRef.current) {
+        void trackBuyerEvent(property.slug, activeSessionRef.current, "session_ended", selectedRoom.name);
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- session lifecycle once per property visit
   }, [property.slug]);
 
   useEffect(() => {
-    void trackBuyerEvent(property.slug, sessionId.current, "room_selected", selectedRoom.name);
-  }, [property.slug, selectedRoom.name]);
+    if (visitorSessionId) {
+      void trackBuyerEvent(property.slug, visitorSessionId, "room_selected", selectedRoom.name);
+    }
+  }, [property.slug, selectedRoom.name, visitorSessionId]);
 
   async function ask(inputType: "voice" | "text", overrideQuestion?: string) {
     const text = (overrideQuestion ?? question).trim();
@@ -167,7 +190,7 @@ export function QrRoomAgentClient({ property }: QrRoomAgentClientProps) {
   }
 
   async function submitLead() {
-    if (!answer || !leadName.trim() || !leadEmail.trim()) return;
+    if (!answer || !leadEmail.trim()) return;
     setLoading(true);
     try {
       const response = await fetch(`/api/public/properties/${property.slug}/ask`, {
@@ -175,9 +198,8 @@ export function QrRoomAgentClient({ property }: QrRoomAgentClientProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           questionId: answer.questionId,
-          buyerName: leadName,
+          buyerName: leadName || null,
           buyerEmail: leadEmail,
-          buyerPhone: leadPhone || null,
           requestedFeatureSheet: requestingFeatureSheet,
         }),
       });
@@ -313,8 +335,7 @@ export function QrRoomAgentClient({ property }: QrRoomAgentClientProps) {
                     <Input value={leadName} onChange={(event) => setLeadName(event.target.value)} placeholder="Name" />
                     <Input value={leadEmail} onChange={(event) => setLeadEmail(event.target.value)} placeholder="Email" type="email" />
                   </div>
-                  <Input value={leadPhone} onChange={(event) => setLeadPhone(event.target.value)} placeholder="Phone optional" />
-                  <Button type="button" onClick={submitLead} disabled={loading || !leadName.trim() || !leadEmail.trim()}>
+                  <Button type="button" onClick={submitLead} disabled={loading || !leadEmail.trim()}>
                     {requestingFeatureSheet ? "Request Feature Sheet" : "Send to Agent"}
                   </Button>
                   {leadSaved && (

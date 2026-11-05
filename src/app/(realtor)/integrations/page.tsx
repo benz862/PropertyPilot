@@ -7,6 +7,9 @@ import { GhlSetupBuilder } from "@/components/crm/ghl-setup-builder";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert } from "@/components/ui/alert";
 
 interface IntegrationStatus {
   name: string;
@@ -34,6 +37,8 @@ export default function IntegrationsPage() {
     },
   ]);
   const [loading, setLoading] = useState(false);
+  const [locationId, setLocationId] = useState("");
+  const [connectionMessage, setConnectionMessage] = useState<string | null>(null);
 
   useEffect(() => {
     void refreshGhlStatus();
@@ -63,6 +68,26 @@ export default function IntegrationsPage() {
     }
   }
 
+  async function saveGhlLocation() {
+    setLoading(true);
+    setConnectionMessage(null);
+    try {
+      const response = await fetch("/api/v1/crm/connection", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ locationId }),
+      });
+      const payload = (await response.json()) as { error?: { message?: string }; data?: { locationId?: string } };
+      if (!response.ok) throw new Error(payload.error?.message ?? "Could not save GoHighLevel connection.");
+      setConnectionMessage("GoHighLevel destination saved. New leads will route only to this sub-account.");
+      await refreshGhlStatus();
+    } catch (error) {
+      setConnectionMessage(error instanceof Error ? error.message : "Could not save GoHighLevel connection.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <RealtorLayoutShell title="Integrations" description="Connect CRM, billing, and email.">
       <div className="grid gap-4 sm:grid-cols-2">
@@ -84,9 +109,24 @@ export default function IntegrationsPage() {
                 </Button>
               )}
               {integration.name === "GoHighLevel" && (
-                <p className="text-xs text-muted-foreground">
-                  Phase 1 uses GHL private integration token environment variables only.
-                </p>
+                <div className="mt-4 space-y-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="ghl-location-id">This agent&apos;s GHL Location ID</Label>
+                    <Input
+                      id="ghl-location-id"
+                      value={locationId}
+                      onChange={(event) => setLocationId(event.target.value)}
+                      placeholder="Paste the Location ID, not a token"
+                    />
+                  </div>
+                  <Button size="sm" onClick={saveGhlLocation} disabled={loading || !locationId.trim()}>
+                    Save lead destination
+                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    PropertyPilot keeps the private integration token securely on the server. This ID only selects this agent&apos;s own GHL sub-account.
+                  </p>
+                  {connectionMessage && <Alert variant="info" title="GoHighLevel">{connectionMessage}</Alert>}
+                </div>
               )}
             </CardContent>
           </Card>

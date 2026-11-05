@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 
-import { createClient } from "@/lib/supabase/server";
+import { hasSessionForPublicTour } from "@/lib/public-tour/authorization";
+import { createServiceClient } from "@/lib/supabase/server";
 import { env } from "@/lib/env";
 import {
   createOfflineConciergeResponse,
@@ -67,7 +68,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Could not transcribe audio" }, { status: 400 });
     }
 
-    const supabase = await createClient();
+    const supabase = createServiceClient();
+    if (!(await hasSessionForPublicTour(supabase, propertyId, visitorSessionId))) {
+      return NextResponse.json({ error: "Tour session not found" }, { status: 404 });
+    }
     const response = await processVoiceConcierge(supabase, {
       propertyId,
       visitorSessionId,
