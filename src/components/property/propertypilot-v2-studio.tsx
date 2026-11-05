@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { uploadPropertyPhotos } from "@/lib/uploads/browser-photo-upload";
 
 type Status = "idle" | "building" | "published" | "error";
 
@@ -98,7 +99,7 @@ export function PropertyPilotV2Studio() {
 
       if (photos.length > 0) {
         setMessage("Uploading property photos...");
-        await uploadFiles(`/api/properties/${property.id}/photos`, photos);
+        await uploadPropertyPhotos(property.id, photos);
       }
 
       if (documents.length > 0) {

@@ -34,6 +34,7 @@ import {
   parseMlsUploadText,
   type ParsedMlsUpload,
 } from "@/lib/property-builder/mls-upload-parser";
+import { uploadPropertyPhotos } from "@/lib/uploads/browser-photo-upload";
 
 const STORAGE_KEY = "propertypilot-wizard-draft";
 const MAX_MLS_UPLOAD_BYTES = 3 * 1024 * 1024;
@@ -220,23 +221,7 @@ export function PropertyWizard() {
       }
 
       const propertyId = await ensurePropertyCreated();
-      const formData = new FormData();
-      files.forEach((file) => formData.append("files", file));
-
-      const response = await fetch(`/api/properties/${propertyId}/photos`, {
-        method: "POST",
-        body: formData,
-      });
-      const body = (await response.json()) as {
-        data?: { photos?: unknown[] };
-        error?: string | null;
-      };
-
-      if (!response.ok || body.error) {
-        throw new Error(body.error ?? "Photo upload failed.");
-      }
-
-      const uploadedCount = body.data?.photos?.length ?? files.length;
+      const uploadedCount = await uploadPropertyPhotos(propertyId, files);
       setPhotoUploadCount((count) => count + uploadedCount);
       setPhotoUploadStatus("success");
       setPhotoUploadMessage(`${uploadedCount} photo${uploadedCount === 1 ? "" : "s"} uploaded.`);
