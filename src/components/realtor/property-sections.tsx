@@ -1,7 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Upload } from "lucide-react";
+import { useRef, useState, type ChangeEvent } from "react";
 
 import { PhotoStagingDialog } from "@/components/realtor/photo-staging-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +15,7 @@ import {
   type KnowledgeGroupKey,
 } from "@/lib/realtor-workspace/types";
 import { getPhotoPublicUrl } from "@/lib/storage/photo-url";
+import { uploadPropertyPhotos } from "@/lib/uploads/browser-photo-upload";
 import type { KnowledgeCategory, KnowledgeObject, Photo, PropertyTwinContext } from "@/types/database";
 
 interface KnowledgeSectionProps {
@@ -122,18 +125,63 @@ interface PhotosSectionProps {
 
 export function PhotosSection({ context }: PhotosSectionProps) {
   const photos = context.photos;
+  const router = useRouter();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+
+  async function handlePhotoSelection(event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files ?? []);
+    if (files.length === 0) return;
+
+    setUploading(true);
+    setUploadMessage(null);
+    try {
+      const uploadedCount = await uploadPropertyPhotos(context.property.id, files);
+      setUploadMessage(`${uploadedCount} photo${uploadedCount === 1 ? "" : "s"} uploaded.`);
+      event.target.value = "";
+      router.refresh();
+    } catch (error) {
+      setUploadMessage(error instanceof Error ? error.message : "Photo upload failed.");
+    } finally {
+      setUploading(false);
+    }
+  }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold">Photo Center</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {photos.length} photos · drag-and-drop upload, AI analysis, and virtual staging
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-2xl font-bold">Photo Center</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {photos.length} photos · AI room detection and virtual staging
+          </p>
+        </div>
+        <div className="space-y-2 sm:text-right">
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            multiple
+            className="hidden"
+            onChange={handlePhotoSelection}
+          />
+          <Button type="button" onClick={() => inputRef.current?.click()} disabled={uploading}>
+            <Upload className="size-4" aria-hidden />
+            {uploading ? "Uploading..." : "Upload photos"}
+          </Button>
+          <p className="text-xs text-muted-foreground">JPG, PNG, or WebP · up to 30 at a time</p>
+        </div>
       </div>
 
+      {uploadMessage ? (
+        <p role="status" className="rounded-lg border border-border bg-secondary px-3 py-2 text-sm">
+          {uploadMessage}
+        </p>
+      ) : null}
+
       {photos.length === 0 ? (
-        <EmptySection message="Upload photos to enable AI room detection and coverage analysis." />
+        <EmptySection message="Use “Upload photos” to add images for AI room detection and coverage analysis." />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {photos.map((photo) => (

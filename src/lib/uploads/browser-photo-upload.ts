@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/client";
 import {
   ALLOWED_PHOTO_TYPES,
+  MAX_PHOTO_FILES,
   PROPERTY_PHOTO_BUCKET,
   propertyUploadPath,
 } from "@/lib/uploads/property-upload";
@@ -17,6 +18,13 @@ interface UploadedPhoto {
  * policy still limits uploads to the agent's own property folder.
  */
 export async function uploadPropertyPhotos(propertyId: string, files: File[]): Promise<number> {
+  if (files.length === 0) {
+    throw new Error("Choose at least one photo.");
+  }
+  if (files.length > MAX_PHOTO_FILES) {
+    throw new Error(`Upload ${MAX_PHOTO_FILES} photos or fewer at a time.`);
+  }
+
   const client = createClient();
   const uploaded: UploadedPhoto[] = [];
 
