@@ -1,5 +1,4 @@
 import OpenAI from "openai";
-import { PDFParse } from "pdf-parse";
 
 import { env } from "@/lib/env";
 import {
@@ -320,6 +319,10 @@ async function readDocumentText(input: DocumentAnalysisInput): Promise<{
     }
 
     const buffer = Buffer.from(await data.arrayBuffer());
+    // `pdf-parse` evaluates browser-only globals when loaded. Keep it out of
+    // every PropertyTwin request so creating a property or uploading a photo
+    // does not require a PDF runtime.
+    const { PDFParse } = await import("pdf-parse");
     const parser = new PDFParse({ data: buffer });
     try {
       const parsed = await parser.getText();
