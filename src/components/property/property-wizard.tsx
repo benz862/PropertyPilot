@@ -64,6 +64,7 @@ interface WizardDraft {
   bathrooms: string;
   squareFeet: string;
   listingPrice: string;
+  listingSourceUrl: string;
   publicRemarks: string;
 }
 
@@ -78,6 +79,7 @@ const defaultDraft: WizardDraft = {
   bathrooms: "",
   squareFeet: "",
   listingPrice: "",
+  listingSourceUrl: "",
   publicRemarks: "",
 };
 
@@ -518,6 +520,19 @@ export function PropertyWizard() {
 
           {currentStep?.id === "mls" && (
             <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="listingSourceUrl">Listing source URL</Label>
+                <Input
+                  id="listingSourceUrl"
+                  type="url"
+                  value={draft.listingSourceUrl}
+                  onChange={(e) => updateField("listingSourceUrl", e.target.value)}
+                  placeholder="https://www.zillow.com/..."
+                />
+                <p className="text-xs text-muted-foreground">
+                  Optional. Save a Zillow, brokerage, or other listing link as a private reference. Upload the MLS export or approved materials for facts used in the tour.
+                </p>
+              </div>
               <div className="flex flex-col items-center gap-4 rounded-xl border-2 border-dashed border-border bg-secondary/30 px-6 py-10 text-center">
                 <div className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
                   <Upload className="size-6" aria-hidden />
@@ -885,6 +900,7 @@ async function createPropertyFromDraft(draft: WizardDraft): Promise<string> {
       bathrooms: parseOptionalNumber(draft.bathrooms),
       finishedSquareFeet: parseOptionalNumber(draft.squareFeet),
       listingPrice: parseOptionalNumber(draft.listingPrice),
+      listingSourceUrl: draft.listingSourceUrl || null,
       publicRemarks: draft.publicRemarks || null,
     }),
   });

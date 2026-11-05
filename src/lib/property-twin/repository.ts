@@ -103,6 +103,7 @@ export class PropertyTwinRepository {
         public_remarks: input.publicRemarks,
         private_notes: input.privateNotes,
         listing_price: input.listingPrice,
+        listing_source_url: input.listingSourceUrl,
         listing_status: input.listingStatus,
         agent_name: input.agentName,
         brokerage: input.brokerage,

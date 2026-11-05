@@ -27,6 +27,7 @@ const profile: PropertyProfile = {
   publicRemarks: null,
   privateNotes: null,
   listingPrice: 725000,
+  listingSourceUrl: null,
   listingStatus: "draft",
   agentName: null,
   brokerage: null,

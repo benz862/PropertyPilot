@@ -45,6 +45,7 @@ export function mapProperty(row: Tables<"properties">): PropertyProfile {
     publicRemarks: row.public_remarks,
     privateNotes: row.private_notes,
     listingPrice: row.listing_price,
+    listingSourceUrl: row.listing_source_url ?? null,
     listingStatus: row.listing_status ?? null,
     agentName: row.agent_name ?? null,
     brokerage: row.brokerage ?? null,

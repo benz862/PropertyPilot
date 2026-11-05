@@ -145,6 +145,7 @@ export interface PropertyProfile {
   publicRemarks: string | null;
   privateNotes: string | null;
   listingPrice: number | null;
+  listingSourceUrl: string | null;
   listingStatus: string | null;
   agentName: string | null;
   brokerage: string | null;
@@ -459,6 +460,7 @@ export interface UpdatePropertyProfileInput {
   publicRemarks?: string | null;
   privateNotes?: string | null;
   listingPrice?: number | null;
+  listingSourceUrl?: string | null;
   listingStatus?: string | null;
   agentName?: string | null;
   brokerage?: string | null;

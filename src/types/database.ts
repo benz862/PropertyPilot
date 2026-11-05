@@ -194,6 +194,7 @@ export interface Property {
   public_remarks: string | null;
   private_notes: string | null;
   listing_price: number | null;
+  listing_source_url?: string | null;
   slug: string;
   listing_status?: string | null;
   agent_name?: string | null;
